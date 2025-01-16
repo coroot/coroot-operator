@@ -68,6 +68,13 @@ type PrometheusSpec struct {
 	PodAnnotations map[string]string           `json:"podAnnotations,omitempty"`
 }
 
+type ExternalPrometheusSpec struct {
+	Address        string                    `json:"address,omitempty"`
+	User           string                    `json:"user,omitempty"`
+	Password       string                    `json:"password,omitempty"`
+	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
+}
+
 type ClickhouseSpec struct {
 	Shards   int `json:"shards,omitempty"`
 	Replicas int `json:"replicas,omitempty"`
@@ -153,6 +160,7 @@ type CorootSpec struct {
 	ClusterAgent ClusterAgentSpec `json:"clusterAgent,omitempty"`
 
 	Prometheus PrometheusSpec `json:"prometheus,omitempty"`
+	ExternalPrometheus *ExternalPrometheusSpec `json:"externalPrometheus,omitempty"`
 
 	Clickhouse         ClickhouseSpec          `json:"clickhouse,omitempty"`
 	ExternalClickhouse *ExternalClickhouseSpec `json:"externalClickhouse,omitempty"`

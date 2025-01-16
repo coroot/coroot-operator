@@ -156,9 +156,32 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot) *appsv1.Statef
 
 	env := []corev1.EnvVar{
 		{Name: "GLOBAL_REFRESH_INTERVAL", Value: refreshInterval},
-		{Name: "GLOBAL_PROMETHEUS_URL", Value: fmt.Sprintf("http://%s-prometheus.%s:9090", cr.Name, cr.Namespace)},
 		{Name: "INSTALLATION_TYPE", Value: "k8s-operator"},
 	}
+	
+	if ep := cr.Spec.ExternalPrometheus; ep != nil {
+		env = append(env,)
+		env = append(env,
+			corev1.EnvVar{Name: "GLOBAL_PROMETHEUS_URL", Value: ep.Address},
+			corev1.EnvVar{Name: "GLOBAL_PROMETHEUS_USER", Value: ep.User},
+		)
+		password := corev1.EnvVar{Name: "GLOBAL_PROMETHEUS_PASSWORD"}
+		if ep.PasswordSecret != nil {
+			password.ValueFrom = &corev1.EnvVarSource{SecretKeyRef: ep.PasswordSecret}
+		} else {
+			password.Value = ep.Password
+		}
+		env = append(env, password)
+	} else 
+	{
+		env = append(env,
+			corev1.EnvVar{
+				Name:  "GLOBAL_PROMETHEUS_URL",
+				Value: fmt.Sprintf("http://%s-prometheus.%s:9090", cr.Name, cr.Namespace),
+			},
+		)
+	}
+
 	if cr.Spec.CacheTTL.Duration > 0 {
 		env = append(env, corev1.EnvVar{Name: "CACHE_TTL", Value: cr.Spec.CacheTTL.Duration.String()})
 	}
