@@ -113,6 +113,7 @@ func (r *CorootReconciler) prometheusDeployment(cr *corootv1.Coroot) *appsv1.Dep
 							"--config.file=/etc/prometheus/prometheus.yml",
 							"--web.listen-address=0.0.0.0:9090",
 							"--storage.tsdb.path=/data",
+							"--storage.tsdb.out-of-order-time-window=5m",
 							"--storage.tsdb.retention.time=" + retention,
 							"--web.enable-remote-write-receiver",
 							"--query.max-samples=100000000",
