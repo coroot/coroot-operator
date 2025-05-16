@@ -54,6 +54,7 @@ func (r *CorootReconciler) corootService(cr *corootv1.Coroot) *corev1.Service {
 	s.Spec = corev1.ServiceSpec{
 		Selector: ls,
 		Type:     cr.Spec.Service.Type,
+		Annotations: cr.Spec.Service.Annotations,
 		Ports: []corev1.ServicePort{
 			{
 				Name:       "http",

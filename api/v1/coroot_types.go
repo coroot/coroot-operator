@@ -43,6 +43,8 @@ type ServiceSpec struct {
 	Port int32 `json:"port,omitempty"`
 	// NodePort number (if type is NodePort).
 	NodePort int32 `json:"nodePort,omitempty"`
+	// Annotations for the service.
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type StorageSpec struct {
