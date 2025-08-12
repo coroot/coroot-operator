@@ -119,7 +119,7 @@ func (r *CorootReconciler) clickhousePVCs(cr *corootv1.Coroot) []*corev1.Persist
 							corev1.ResourceStorage: size,
 						},
 					},
-					StorageClassName: cr.Spec.Storage.ClassName,
+					StorageClassName: cr.Spec.Clickhouse.Storage.ClassName,
 				},
 			}
 			res = append(res, pvc)
