@@ -287,6 +287,11 @@ func (r *CorootReconciler) CreateOrUpdatePVC(ctx context.Context, cr *corootv1.C
 	annotations := pvc.Annotations
 	retain := reclaimPolicy == corev1.PersistentVolumeReclaimRetain
 	r.CreateOrUpdate(ctx, cr, pvc, false, retain, func() error {
+		currentStorage := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+		targetStorage := spec.Resources.Requests[corev1.ResourceStorage]
+		if !currentStorage.IsZero() && currentStorage.Cmp(targetStorage) > 0 {
+			spec.Resources.Requests[corev1.ResourceStorage] = currentStorage
+		}
 		return MergeSpecs(pvc, &pvc.Spec, spec, annotations)
 	})
 }
