@@ -47,9 +47,10 @@ func (r *CorootReconciler) prometheusService(cr *corootv1.Coroot) *corev1.Servic
 func (r *CorootReconciler) prometheusPVC(cr *corootv1.Coroot) *corev1.PersistentVolumeClaim {
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "data-" + cr.Name + "-prometheus",
-			Namespace: cr.Namespace,
-			Labels:    Labels(cr, "prometheus"),
+			Name:        "data-" + cr.Name + "-prometheus",
+			Namespace:   cr.Namespace,
+			Labels:      Labels(cr, "prometheus"),
+			Annotations: cr.Spec.Prometheus.Storage.Annotations,
 		},
 	}
 

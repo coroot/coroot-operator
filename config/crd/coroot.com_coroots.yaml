@@ -3164,6 +3164,11 @@ spec:
                       storage:
                         description: Storage configuration for clickhouse-keeper.
                         properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: Annotations for PersistentVolumeClaim (PVC).
+                            type: object
                           className:
                             description: If not set, the default storage class will
                               be used.
@@ -3297,6 +3302,11 @@ spec:
                   storage:
                     description: Storage configuration for clickhouse.
                     properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations for PersistentVolumeClaim (PVC).
+                        type: object
                       className:
                         description: If not set, the default storage class will be
                           used.
@@ -7747,6 +7757,11 @@ spec:
                     type: string
                   storage:
                     properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations for PersistentVolumeClaim (PVC).
+                        type: object
                       className:
                         description: If not set, the default storage class will be
                           used.
@@ -7929,6 +7944,11 @@ spec:
               storage:
                 description: Storage configuration for Coroot.
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations for PersistentVolumeClaim (PVC).
+                    type: object
                   className:
                     description: If not set, the default storage class will be used.
                     type: string

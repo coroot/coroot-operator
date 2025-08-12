@@ -65,9 +65,10 @@ func (r *CorootReconciler) clickhouseKeeperPVCs(cr *corootv1.Coroot) []*corev1.P
 	for replica := 0; replica < clickhouseKeeperReplicas(cr); replica++ {
 		pvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("data-%s-clickhouse-keeper-%d", cr.Name, replica),
-				Namespace: cr.Namespace,
-				Labels:    ls,
+				Name:        fmt.Sprintf("data-%s-clickhouse-keeper-%d", cr.Name, replica),
+				Namespace:   cr.Namespace,
+				Labels:      ls,
+				Annotations: cr.Spec.Clickhouse.Keeper.Storage.Annotations,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

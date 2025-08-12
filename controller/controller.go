@@ -284,9 +284,10 @@ func (r *CorootReconciler) CreateOrUpdateStatefulSet(ctx context.Context, cr *co
 
 func (r *CorootReconciler) CreateOrUpdatePVC(ctx context.Context, cr *corootv1.Coroot, pvc *corev1.PersistentVolumeClaim, reclaimPolicy corev1.PersistentVolumeReclaimPolicy) {
 	spec := pvc.Spec
+	annotations := pvc.Annotations
 	retain := reclaimPolicy == corev1.PersistentVolumeReclaimRetain
 	r.CreateOrUpdate(ctx, cr, pvc, false, retain, func() error {
-		return MergeSpecs(pvc, &pvc.Spec, spec, nil)
+		return MergeSpecs(pvc, &pvc.Spec, spec, annotations)
 	})
 }
 

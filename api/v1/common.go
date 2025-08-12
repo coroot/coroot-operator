@@ -35,6 +35,8 @@ type StorageSpec struct {
 	ClassName *string `json:"className,omitempty"`
 	// Valid options are Retain (keep PVC), or Delete (default).
 	ReclaimPolicy corev1.PersistentVolumeReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	// Annotations for PersistentVolumeClaim (PVC).
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type BasicAuthSpec struct {
