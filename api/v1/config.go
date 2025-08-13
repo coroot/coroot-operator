@@ -2,6 +2,7 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type SSOSpec struct {
@@ -71,6 +72,8 @@ type ProjectSpec struct {
 	ApplicationCategories []ApplicationCategorySpec `json:"applicationCategories,omitempty"`
 	// Custom applications.
 	CustomApplications []CustomApplicationSpec `json:"customApplications,omitempty"`
+	// Inspection overrides.
+	InspectionOverrides *InspectionOverrides `json:"inspectionOverrides,omitempty"`
 }
 
 type ApiKeySpec struct {
@@ -220,4 +223,30 @@ type CustomApplicationSpec struct {
 	Name string `json:"name"`
 	// List of glob patterns for <instance_name>.
 	InstancePatterns []string `json:"instancePatterns,omitempty"`
+}
+
+type InspectionOverrides struct {
+	// SLO Availability overrides.
+	SLOAvailability []SLOAvailabilityOverride `json:"sloAvailability,omitempty"`
+	// SLO Latency overrides.
+	SLOLatency []SLOLatencyOverride `json:"sloLatency,omitempty"`
+}
+
+type SLOAvailabilityOverride struct {
+	// ApplicationId in the format <namespace>:<kind>:<name> (e.g., default:Deployment:catalog).
+	// +kubebuilder:validation:Pattern="^[^:]*:[^:]*:[^:]*"
+	ApplicationId string `json:"applicationId"`
+	// The percentage of requests that should be served without errors (e.g., 95, 99, 99.9).
+	ObjectivePercent Percent `json:"objectivePercent"`
+}
+
+type SLOLatencyOverride struct {
+	// ApplicationId in the format <namespace>:<kind>:<name> (e.g., default:Deployment:catalog).
+	// +kubebuilder:validation:Pattern="^[^:]*:[^:]*:[^:]*"
+	ApplicationId string `json:"applicationId"`
+	// The percentage of requests that should be served faster than ObjectiveThreshold (e.g., 95, 99, 99.9).
+	ObjectivePercent Percent `json:"objectivePercent"`
+	// The latency threshold (e.g., 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s).
+	// +kubebuilder:validation:Enum="5ms";"10ms";"25ms";"50ms";"100ms";"250ms";"500ms";"1s";"2.5s";"5s";"10s"
+	ObjectiveThreshold metav1.Duration `json:"objectiveThreshold"`
 }

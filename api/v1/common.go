@@ -1,6 +1,9 @@
 package v1
 
 import (
+	"encoding/json"
+	"strconv"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -49,4 +52,27 @@ type BasicAuthSpec struct {
 type HeaderSpec struct {
 	Key   string `json:"key" yaml:"key"`
 	Value string `json:"value" yaml:"value"`
+}
+
+// Percent represents a percentage value between 0 and 100 (inclusive).
+// +kubebuilder:validation:Type=number
+// +kubebuilder:validation:Minimum=0
+// +kubebuilder:validation:Maximum=100
+type Percent string
+
+func (p *Percent) UnmarshalJSON(b []byte) error {
+	var v float32
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	*p = Percent(strconv.FormatFloat(float64(v), 'f', -1, 32))
+	return nil
+}
+
+func (p Percent) MarshalJSON() ([]byte, error) {
+	_, err := strconv.ParseFloat(string(p), 32)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(string(p)), nil
 }
