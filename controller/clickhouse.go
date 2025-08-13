@@ -288,7 +288,10 @@ var clickhouseConfigTemplate = template.Must(template.New("").Parse(`
     <level>information</level>
 </logger>
 
+<listen_host>::</listen_host>
 <listen_host>0.0.0.0</listen_host>
+<listen_try>1</listen_try>
+
 <http_port>8123</http_port>
 <tcp_port>9000</tcp_port>
 <interserver_http_port>9009</interserver_http_port>
