@@ -165,6 +165,7 @@ func (r *CorootReconciler) clickhouseStatefulSets(cr *corootv1.Coroot) []*appsv1
 						Name:      "data",
 						Namespace: cr.Namespace,
 					},
+					Spec: r.clickhousePVCs(cr)[0].Spec,
 				},
 			},
 			Template: corev1.PodTemplateSpec{

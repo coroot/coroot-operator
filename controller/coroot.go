@@ -478,6 +478,7 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 				Name:      "data",
 				Namespace: cr.Namespace,
 			},
+			Spec: r.corootPVCs(cr)[0].Spec,
 		}},
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{

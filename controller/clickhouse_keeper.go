@@ -110,6 +110,7 @@ func (r *CorootReconciler) clickhouseKeeperStatefulSet(cr *corootv1.Coroot) *app
 				Name:      "data",
 				Namespace: cr.Namespace,
 			},
+			Spec: r.clickhouseKeeperPVCs(cr)[0].Spec,
 		}},
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
