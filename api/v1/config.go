@@ -5,6 +5,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type CorootCloudSpec struct {
+	// Coroot Cloud API key. Can be obtained from the UI after connecting to Coroot Cloud.
+	APIKey string `json:"apiKey,omitempty"`
+	// Secret containing the API key.
+	APIKeySecret *corev1.SecretKeySelector `json:"apiKeySecret,omitempty"`
+	// Root Cause Analysis (RCA) configuration.
+	RCA *CorootCloudRCASpec `json:"rca,omitempty"`
+}
+
+type CorootCloudRCASpec struct {
+	// If true, incidents will not be investigated automatically.
+	DisableIncidentsAutoInvestigation bool `json:"disableIncidentsAutoInvestigation,omitempty"`
+}
+
 type SSOSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
 	// Default role for authenticated users (Admin, Editor, Viewer, or a custom role).

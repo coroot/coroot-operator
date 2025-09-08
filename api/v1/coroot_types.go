@@ -272,6 +272,8 @@ type CorootSpec struct {
 	// Store configuration in a Postgres DB instead of SQLite (required if replicas > 1).
 	Postgres *PostgresSpec `json:"postgres,omitempty"`
 
+	// Coroot Cloud integration.
+	CorootCloud *CorootCloudSpec `json:"corootCloud,omitempty"`
 	// Projects configuration (Coroot will create or update the specified projects).
 	Projects []ProjectSpec `json:"projects,omitempty"`
 	// Single Sign-On configuration (Coroot Enterprise Edition only).

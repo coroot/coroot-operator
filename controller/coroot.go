@@ -48,6 +48,21 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 		}
 	}
 
+	if cc := cr.Spec.CorootCloud; cc != nil {
+		if cc.APIKeySecret != nil {
+			if _, err = r.GetSecret(ctx, cr, cc.APIKeySecret); err != nil {
+				logErr("Failed to get Coroot Cloud API Key: %s", err.Error())
+			} else {
+				cc.APIKey = configEnvs.Add(cc.APIKeySecret)
+			}
+			cc.APIKeySecret = nil
+		}
+		if cc.APIKey == "" {
+			logErr("Coroot Cloud API key is required.")
+			cr.Spec.CorootCloud = nil
+		}
+	}
+
 	apiKeySecrets := map[string][]string{}
 	for _, p := range cr.Spec.Projects {
 		for i, k := range p.ApiKeys {
@@ -549,13 +564,15 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 	}
 
 	var cfg = struct {
-		Projects []corootv1.ProjectSpec `json:"projects,omitempty"`
-		SSO      *corootv1.SSOSpec      `json:"sso,omitempty"`
-		AI       *corootv1.AISpec       `json:"ai,omitempty"`
+		Projects    []corootv1.ProjectSpec    `json:"projects,omitempty"`
+		SSO         *corootv1.SSOSpec         `json:"sso,omitempty"`
+		AI          *corootv1.AISpec          `json:"ai,omitempty"`
+		CorootCloud *corootv1.CorootCloudSpec `json:"corootCloud,omitempty"`
 	}{
-		Projects: cr.Spec.Projects,
-		SSO:      cr.Spec.SSO,
-		AI:       cr.Spec.AI,
+		Projects:    cr.Spec.Projects,
+		SSO:         cr.Spec.SSO,
+		AI:          cr.Spec.AI,
+		CorootCloud: cr.Spec.CorootCloud,
 	}
 
 	data, err := yaml.Marshal(cfg)
