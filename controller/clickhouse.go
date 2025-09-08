@@ -250,9 +250,11 @@ func clickhouseConfigCmd(filename string, cr *corootv1.Coroot, shards, replicas,
 		Shards    []int
 		Replicas  []int
 		Keepers   []int
+		LogLevel  string
 	}{
 		Namespace: cr.Namespace,
 		Name:      cr.Name,
+		LogLevel:  cr.Spec.Clickhouse.LogLevel,
 	}
 	for i := 0; i < shards; i++ {
 		params.Shards = append(params.Shards, i)
@@ -262,6 +264,9 @@ func clickhouseConfigCmd(filename string, cr *corootv1.Coroot, shards, replicas,
 	}
 	for i := 0; i < keepers; i++ {
 		params.Keepers = append(params.Keepers, i)
+	}
+	if params.LogLevel == "" {
+		params.LogLevel = "warning"
 	}
 	var out bytes.Buffer
 	_ = clickhouseConfigTemplate.Execute(&out, params)
@@ -286,7 +291,7 @@ var clickhouseConfigTemplate = template.Must(template.New("").Parse(`
 
 <logger>
     <console>1</console>
-    <level>information</level>
+    <level>{{ .LogLevel }}</level>
 </logger>
 
 <listen_host>::</listen_host>

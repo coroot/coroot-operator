@@ -144,6 +144,9 @@ type ClickhouseSpec struct {
 	// Annotations for clickhouse pods.
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 	Image          ImageSpec         `json:"image,omitempty"`
+	// Log level (fatal, critical, error, warning, notice, information, debug, trace, test, or none; default: warning).
+	// +kubebuilder:validation:Enum="none";"fatal";"critical";"error";"warning";"notice";"information";"debug";"trace";"test"
+	LogLevel string `json:"logLevel,omitempty"`
 
 	Keeper ClickhouseKeeperSpec `json:"keeper,omitempty"`
 }
