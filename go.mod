@@ -1,6 +1,6 @@
 module github.io/coroot/operator
 
-go 1.23
+go 1.24
 
 require (
 	github.com/crewjam/saml v0.5.1
