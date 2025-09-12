@@ -20,17 +20,6 @@ type ImageSpec struct {
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
-type ServiceSpec struct {
-	// Service type (e.g., ClusterIP, NodePort, LoadBalancer).
-	Type corev1.ServiceType `json:"type,omitempty"`
-	// Service port number.
-	Port int32 `json:"port,omitempty"`
-	// NodePort number (if type is NodePort).
-	NodePort int32 `json:"nodePort,omitempty"`
-	// Annotations for the service.
-	Annotations map[string]string `json:"annotations,omitempty"`
-}
-
 type StorageSpec struct {
 	// Volume size
 	Size resource.Quantity `json:"size,omitempty"`

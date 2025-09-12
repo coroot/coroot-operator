@@ -37,8 +37,26 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 	if cr.Spec.Service.Port == 0 {
 		cr.Spec.Service.Port = 8080
 	}
+	if !cr.Spec.GRPC.Disabled && cr.Spec.Service.GRPCPort == 0 {
+		cr.Spec.Service.GRPCPort = 4317
+	}
 
 	var err error
+
+	if tls := cr.Spec.TLS; tls != nil {
+		ok := true
+		if _, err = r.GetSecret(ctx, cr, tls.CertSecret); err != nil {
+			logErr("Failed to get TLS Cert: %s.", err.Error())
+			ok = false
+		}
+		if _, err = r.GetSecret(ctx, cr, tls.KeySecret); err != nil {
+			logErr("Failed to get TLS Key: %s.", err.Error())
+			ok = false
+		}
+		if !ok {
+			cr.Spec.TLS = nil
+		}
+	}
 
 	if s := cr.Spec.AuthBootstrapAdminPasswordSecret; s != nil {
 		if _, err = r.GetSecret(ctx, cr, s); err != nil {
@@ -259,18 +277,29 @@ func (r *CorootReconciler) corootService(cr *corootv1.Coroot) *corev1.Service {
 		},
 	}
 
+	ports := []corev1.ServicePort{
+		{
+			Name:       "http",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       cr.Spec.Service.Port,
+			TargetPort: intstr.FromString("http"),
+			NodePort:   cr.Spec.Service.NodePort,
+		},
+	}
+	if !cr.Spec.GRPC.Disabled {
+		ports = append(ports, corev1.ServicePort{
+			Name:       "grpc",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       cr.Spec.Service.GRPCPort,
+			TargetPort: intstr.FromString("grpc"),
+			NodePort:   cr.Spec.Service.GRPCNodePort,
+		})
+	}
+
 	s.Spec = corev1.ServiceSpec{
 		Selector: ls,
 		Type:     cr.Spec.Service.Type,
-		Ports: []corev1.ServicePort{
-			{
-				Name:       "http",
-				Protocol:   corev1.ProtocolTCP,
-				Port:       cr.Spec.Service.Port,
-				TargetPort: intstr.FromString("http"),
-				NodePort:   cr.Spec.Service.NodePort,
-			},
-		},
+		Ports:    ports,
 	}
 
 	return s
@@ -381,9 +410,63 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 
 	refreshInterval := cmp.Or(cr.Spec.MetricsRefreshInterval, corootv1.DefaultMetricRefreshInterval)
 
+	ports := []corev1.ContainerPort{
+		{Name: "http", ContainerPort: 8080, Protocol: corev1.ProtocolTCP},
+	}
+	volumes := []corev1.Volume{
+		{
+			Name: "config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: cr.Name + "-coroot",
+					},
+				},
+			},
+		},
+	}
+	volumeMounts := []corev1.VolumeMount{
+		{Name: "config", MountPath: "/config", ReadOnly: true},
+		{Name: "data", MountPath: "/data"},
+	}
 	env := []corev1.EnvVar{
+		{Name: "LISTEN", Value: ":8080"},
 		{Name: "GLOBAL_REFRESH_INTERVAL", Value: refreshInterval},
 		{Name: "INSTALLATION_TYPE", Value: "k8s-operator"},
+	}
+	if cr.Spec.GRPC.Disabled {
+		env = append(env, corev1.EnvVar{Name: "GRPC_DISABLED", Value: "true"})
+	} else {
+		env = append(env, corev1.EnvVar{Name: "GRPC_LISTEN", Value: ":4317"})
+		ports = append(ports, corev1.ContainerPort{Name: "grpc", ContainerPort: 4317, Protocol: corev1.ProtocolTCP})
+	}
+	if tls := cr.Spec.TLS; tls != nil {
+		volumes = append(volumes, corev1.Volume{
+			Name: "tls",
+			VolumeSource: corev1.VolumeSource{
+				Projected: &corev1.ProjectedVolumeSource{
+					Sources: []corev1.VolumeProjection{
+						{
+							Secret: &corev1.SecretProjection{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: cr.Spec.TLS.CertSecret.Name,
+								},
+								Items: []corev1.KeyToPath{{Key: cr.Spec.TLS.CertSecret.Key, Path: "tls.crt"}},
+							},
+						},
+						{
+							Secret: &corev1.SecretProjection{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: cr.Spec.TLS.KeySecret.Name,
+								},
+								Items: []corev1.KeyToPath{{Key: cr.Spec.TLS.KeySecret.Key, Path: "tls.key"}},
+							},
+						},
+					},
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: "tls", MountPath: "/config/tls", ReadOnly: true})
 	}
 	if cr.Spec.CacheTTL != "" {
 		env = append(env, corev1.EnvVar{Name: "CACHE_TTL", Value: cr.Spec.CacheTTL})
@@ -514,18 +597,12 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 						Name:            "coroot",
 						Args: []string{
 							"--config=/config/config.yaml",
-							"--listen=:8080",
 							"--data-dir=/data",
 						},
-						Env: env,
-						Ports: []corev1.ContainerPort{
-							{Name: "http", ContainerPort: 8080, Protocol: corev1.ProtocolTCP},
-						},
-						VolumeMounts: []corev1.VolumeMount{
-							{Name: "config", MountPath: "/config", ReadOnly: true},
-							{Name: "data", MountPath: "/data"},
-						},
-						Resources: cr.Spec.Resources,
+						Env:          env,
+						Ports:        ports,
+						VolumeMounts: volumeMounts,
+						Resources:    cr.Spec.Resources,
 						ReadinessProbe: &corev1.Probe{
 							ProbeHandler: corev1.ProbeHandler{
 								HTTPGet: &corev1.HTTPGetAction{Path: "/health", Port: intstr.FromString("http")},
@@ -533,18 +610,7 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 						},
 					},
 				},
-				Volumes: []corev1.Volume{
-					{
-						Name: "config",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: cr.Name + "-coroot",
-								},
-							},
-						},
-					},
-				},
+				Volumes: volumes,
 			},
 		},
 	}
@@ -563,16 +629,30 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 		BinaryData: map[string][]byte{},
 	}
 
-	var cfg = struct {
+	type TLS struct {
+		CertFile string `json:"certFile"`
+		KeyFile  string `json:"keyFile"`
+	}
+
+	type Config struct {
 		Projects    []corootv1.ProjectSpec    `json:"projects,omitempty"`
 		SSO         *corootv1.SSOSpec         `json:"sso,omitempty"`
 		AI          *corootv1.AISpec          `json:"ai,omitempty"`
 		CorootCloud *corootv1.CorootCloudSpec `json:"corootCloud,omitempty"`
-	}{
+		TLS         *TLS                      `json:"tls,omitempty"`
+	}
+
+	var cfg = Config{
 		Projects:    cr.Spec.Projects,
 		SSO:         cr.Spec.SSO,
 		AI:          cr.Spec.AI,
 		CorootCloud: cr.Spec.CorootCloud,
+	}
+	if cr.Spec.TLS != nil {
+		cfg.TLS = &TLS{
+			CertFile: "/config/tls/tls.crt",
+			KeyFile:  "/config/tls/tls.key",
+		}
 	}
 
 	data, err := yaml.Marshal(cfg)

@@ -207,6 +207,35 @@ type IngressSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+type ServiceSpec struct {
+	// Service type (e.g., ClusterIP, NodePort, LoadBalancer).
+	Type corev1.ServiceType `json:"type,omitempty"`
+	// Service port (default 8080).
+	Port int32 `json:"port,omitempty"`
+	// Service nodePort (if type is NodePort).
+	NodePort int32 `json:"nodePort,omitempty"`
+	// gRPC port (default 4317).
+	GRPCPort int32 `json:"grpcPort,omitempty"`
+	// gRPC nodePort (if type is NodePort).
+	GRPCNodePort int32 `json:"grpcNodePort,omitempty"`
+	// Annotations for the service.
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+type GRPCSpec struct {
+	// Disables gRPC server.
+	Disabled bool `json:"disabled,omitempty"`
+}
+
+type TLSSpec struct {
+	// Secret containing TLS certificate.
+	// +kubebuilder:validation:Required
+	CertSecret *corev1.SecretKeySelector `json:"certSecret,omitempty"`
+	// Secret containing TLS private key.
+	// +kubebuilder:validation:Required
+	KeySecret *corev1.SecretKeySelector `json:"keySecret,omitempty"`
+}
+
 type CorootSpec struct {
 	// Specifies the metric resolution interval.
 	// +kubebuilder:validation:Pattern="^[0-9]+[sm]$"
@@ -229,6 +258,10 @@ type CorootSpec struct {
 	AuthBootstrapAdminPassword string `json:"authBootstrapAdminPassword,omitempty"`
 	// Secret containing the initial admin password.
 	AuthBootstrapAdminPasswordSecret *corev1.SecretKeySelector `json:"authBootstrapAdminPasswordSecret,omitempty"`
+	// gRPC settings.
+	GRPC GRPCSpec `json:"grpc,omitempty"`
+	// TLS settings (enables TLS for gRPC if defined).
+	TLS *TLSSpec `json:"tls,omitempty"`
 	// Environment variables for Coroot.
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
