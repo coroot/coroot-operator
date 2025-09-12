@@ -3088,6 +3088,22 @@ spec:
                               x-kubernetes-map-type: atomic
                             type: array
                         type: object
+                      logLevel:
+                        description: 'Log level (fatal, critical, error, warning,
+                          notice, information, debug, trace, test, or none; default:
+                          warning).'
+                        enum:
+                        - none
+                        - fatal
+                        - critical
+                        - error
+                        - warning
+                        - notice
+                        - information
+                        - debug
+                        - trace
+                        - test
+                        type: string
                       nodeSelector:
                         additionalProperties:
                           type: string

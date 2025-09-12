@@ -183,12 +183,17 @@ func clickhouseKeeperConfigCmd(filename string, cr *corootv1.Coroot, replicas in
 		Namespace string
 		Name      string
 		Ids       []int
+		LogLevel  string
 	}{
 		Namespace: cr.Namespace,
 		Name:      cr.Name,
+		LogLevel:  cr.Spec.Clickhouse.Keeper.LogLevel,
 	}
 	for id := 0; id < replicas; id++ {
 		params.Ids = append(params.Ids, id)
+	}
+	if params.LogLevel == "" {
+		params.LogLevel = "warning"
 	}
 	var out bytes.Buffer
 	_ = clickhouseKeeperConfigTemplate.Execute(&out, params)
@@ -199,7 +204,7 @@ var clickhouseKeeperConfigTemplate = template.Must(template.New("").Parse(`
 <clickhouse>
 <logger>
     <console>1</console>
-    <level>information</level>
+    <level>{{ .LogLevel }}</level>
 </logger>
 
 <listen_host>::</listen_host>
