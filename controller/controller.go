@@ -76,6 +76,8 @@ func NewCorootReconciler(mgr ctrl.Manager) *CorootReconciler {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io;kustomize.toolkit.fluxcd.io;helm.toolkit.fluxcd.io;notification.toolkit.fluxcd.io;image.toolkit.fluxcd.io;fluxcd.controlplane.io,resources=*,verbs=get;list;watch
 
 func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := ctrl.Log.WithValues("namespace", req.Namespace, "name", req.Name)

@@ -61,6 +61,16 @@ func (r *CorootReconciler) clusterAgentClusterRole(cr *corootv1.Coroot) *rbacv1.
 				Resources: []string{"storageclasses", "volumeattachments"},
 				Verbs:     verbs,
 			},
+			{
+				APIGroups: []string{"apiextensions.k8s.io"},
+				Resources: []string{"customresourcedefinitions"},
+				Verbs:     verbs,
+			},
+			{
+				APIGroups: []string{"source.toolkit.fluxcd.io", "kustomize.toolkit.fluxcd.io", "helm.toolkit.fluxcd.io", "notification.toolkit.fluxcd.io", "image.toolkit.fluxcd.io", "fluxcd.controlplane.io"},
+				Resources: []string{"*"},
+				Verbs:     verbs,
+			},
 		},
 	}
 	return role
