@@ -528,6 +528,12 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 			corev1.EnvVar{Name: "GLOBAL_CLICKHOUSE_INITIAL_DATABASE", Value: ec.Database},
 		)
 		env = append(env, envVarFromSecret("GLOBAL_CLICKHOUSE_PASSWORD", ec.PasswordSecret, ec.Password))
+		if ec.TLSEnabled {
+			env = append(env, corev1.EnvVar{Name: "GLOBAL_CLICKHOUSE_TLS_ENABLED", Value: "true"})
+			if ec.TLSSkipVerify {
+				env = append(env, corev1.EnvVar{Name: "GLOBAL_CLICKHOUSE_TLS_SKIP_VERIFY", Value: "true"})
+			}
+		}
 	} else {
 		env = append(env,
 			corev1.EnvVar{

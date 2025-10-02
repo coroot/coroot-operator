@@ -177,8 +177,12 @@ type ExternalClickhouseSpec struct {
 	Database string `json:"database,omitempty"`
 	// Password for accessing the external ClickHouse (plain-text, not recommended).
 	Password string `json:"password,omitempty"`
-	// Secret containing password for accessing the external ClickHouse.
+	// Secret containing a password for accessing the external ClickHouse.
 	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	// Whether to enable TLS for the connection to ClickHouse.
+	TLSEnabled bool `json:"tlsEnabled,omitempty"`
+	// Whether to skip verification of the ClickHouse server's TLS certificate.
+	TLSSkipVerify bool `json:"tlsSkipVerify,omitempty"`
 }
 
 type PostgresSpec struct {
@@ -192,7 +196,7 @@ type PostgresSpec struct {
 	Database string `json:"database,omitempty"`
 	// Password for accessing postgres (plain-text, not recommended).
 	Password string `json:"password,omitempty"`
-	// Secret containing password for accessing postgres.
+	// Secret containing a password for accessing postgres.
 	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	// Extra parameters, e.g., sslmode and connect_timeout.
 	Params map[string]string `json:"params,omitempty"`
@@ -234,7 +238,7 @@ type TLSSpec struct {
 	// Secret containing TLS certificate.
 	// +kubebuilder:validation:Required
 	CertSecret *corev1.SecretKeySelector `json:"certSecret,omitempty"`
-	// Secret containing TLS private key.
+	// Secret containing a TLS private key.
 	// +kubebuilder:validation:Required
 	KeySecret *corev1.SecretKeySelector `json:"keySecret,omitempty"`
 }
