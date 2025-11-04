@@ -72,13 +72,14 @@ type OpenAICompatibleSpec struct {
 	Model string `json:"model"`
 }
 
+// +kubebuilder:validation:XValidation:rule="has(self.memberProjects) && size(self.memberProjects) > 0 ? !has(self.apiKeys) || size(self.apiKeys) == 0 : has(self.apiKeys) && size(self.apiKeys) > 0",message="Exactly one of memberProjects or apiKeys must be non-empty."
 type ProjectSpec struct {
 	// Project name (e.g., production, staging; required).
 	// +kubebuilder:validation:Required
 	Name string `json:"name,omitempty"`
-	// Project API keys, used by agents to send telemetry data (required).
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinItems=1
+	// Names of existing projects to aggregate (multi-cluster mode).
+	MemberProjects []string `json:"memberProjects,omitempty"`
+	// Project API keys, used by agents to send telemetry data (required unless memberProjects is set).
 	ApiKeys []ApiKeySpec `json:"apiKeys,omitempty"`
 	// Notification integrations.
 	NotificationIntegrations *NotificationIntegrationsSpec `json:"notificationIntegrations,omitempty"`
