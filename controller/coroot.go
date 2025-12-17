@@ -516,9 +516,13 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 			env = append(env, corev1.EnvVar{Name: "GLOBAL_PROMETHEUS_REMOTE_WRITE_URL", Value: ep.RemoteWriteUrl})
 		}
 	} else {
-		env = append(env,
-			corev1.EnvVar{Name: "GLOBAL_PROMETHEUS_URL", Value: fmt.Sprintf("http://%s-prometheus.%s:9090", cr.Name, cr.Namespace)},
-		)
+		if cr.Spec.StoreMetricsInClickhouse {
+			env = append(env, corev1.EnvVar{Name: "GLOBAL_PROMETHEUS_USE_CLICKHOUSE", Value: "true"})
+		} else {
+			env = append(env,
+				corev1.EnvVar{Name: "GLOBAL_PROMETHEUS_URL", Value: fmt.Sprintf("http://%s-prometheus.%s:9090", cr.Name, cr.Namespace)},
+			)
+		}
 	}
 
 	if ec := cr.Spec.ExternalClickhouse; ec != nil {
