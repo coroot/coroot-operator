@@ -145,7 +145,7 @@ func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	r.CreateOrUpdateIngress(ctx, cr, r.corootIngress(cr), cr.Spec.Ingress == nil)
 
-	if cr.Spec.ExternalPrometheus == nil {
+	if cr.Spec.ExternalPrometheus == nil && !cr.Spec.StoreMetricsInClickhouse {
 		r.CreateOrUpdateServiceAccount(ctx, cr, "prometheus", sccNonroot)
 		r.CreateOrUpdatePVC(ctx, cr, r.prometheusPVC(cr), cr.Spec.Prometheus.Storage.ReclaimPolicy)
 		r.CreateOrUpdateDeployment(ctx, cr, r.prometheusDeployment(cr))

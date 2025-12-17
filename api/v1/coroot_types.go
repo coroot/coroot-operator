@@ -269,6 +269,8 @@ type CorootSpec struct {
 	GRPC GRPCSpec `json:"grpc,omitempty"`
 	// TLS settings (enables TLS for gRPC if defined).
 	TLS *TLSSpec `json:"tls,omitempty"`
+	// Store metrics in ClickHouse. If enabled, Prometheus will not be installed.
+	StoreMetricsInClickhouse bool `json:"storeMetricsInClickhouse,omitempty"`
 	// Environment variables for Coroot.
 	Env []corev1.EnvVar `json:"env,omitempty"`
 

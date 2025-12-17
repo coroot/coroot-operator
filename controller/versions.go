@@ -14,7 +14,7 @@ import (
 const (
 	CorootImageRegistry = "ghcr.io/coroot"
 
-	ClickhouseImage       = "clickhouse:25.1.3-ubi9-0"
+	ClickhouseImage       = "clickhouse:25.11.2-ubi9-0"
 	PrometheusImage       = "prometheus:2.55.1-ubi9-0"
 	KubeStateMetricsImage = "kube-state-metrics:2.15.0-ubi9-0"
 )
