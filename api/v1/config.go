@@ -72,14 +72,16 @@ type OpenAICompatibleSpec struct {
 	Model string `json:"model"`
 }
 
-// +kubebuilder:validation:XValidation:rule="has(self.memberProjects) && size(self.memberProjects) > 0 ? !has(self.apiKeys) || size(self.apiKeys) == 0 : has(self.apiKeys) && size(self.apiKeys) > 0",message="Exactly one of memberProjects or apiKeys must be non-empty."
+// +kubebuilder:validation:XValidation:rule="(has(self.memberProjects) && size(self.memberProjects) > 0 ? 1 : 0) + (has(self.remoteCoroot) ? 1 : 0) + (has(self.apiKeys) && size(self.apiKeys) > 0 ? 1 : 0) == 1",message="Exactly one of memberProjects, remoteCoroot, or apiKeys must be set."
 type ProjectSpec struct {
 	// Project name (e.g., production, staging; required).
 	// +kubebuilder:validation:Required
 	Name string `json:"name,omitempty"`
 	// Names of existing projects to aggregate (multi-cluster mode).
 	MemberProjects []string `json:"memberProjects,omitempty"`
-	// Project API keys, used by agents to send telemetry data (required unless memberProjects is set).
+	// Use another Coroot instance as the data source for this project.
+	RemoteCoroot *RemoteCorootSpec `json:"remoteCoroot,omitempty"`
+	// Project API keys, used by agents to send telemetry data (required unless memberProjects or remoteCoroot is set).
 	ApiKeys []ApiKeySpec `json:"apiKeys,omitempty"`
 	// Notification integrations.
 	NotificationIntegrations *NotificationIntegrationsSpec `json:"notificationIntegrations,omitempty"`
@@ -98,6 +100,21 @@ type ApiKeySpec struct {
 	KeySecret *corev1.SecretKeySelector `json:"keySecret,omitempty"`
 	// API key description (optional).
 	Description string `json:"description,omitempty"`
+}
+
+type RemoteCorootSpec struct {
+	// Base URL of the remote Coroot instance.
+	// +kubebuilder:validation:Pattern="^https?://.+$"
+	Url string `json:"url,omitempty"`
+	// Whether to skip verification of the Coroot server's TLS certificate.
+	TlsSkipVerify bool `json:"tlsSkipVerify,omitempty"`
+	// API key of the remote project.
+	ApiKey string `json:"apiKey,omitempty"`
+	// Secret containing the API key.
+	ApiKeySecret *corev1.SecretKeySelector `json:"apiKeySecret,omitempty"`
+	// Prometheus query resolution/refresh interval (e.g. 15s).
+	// +kubebuilder:validation:Pattern="^[0-9]+[smhdwy]$"
+	MetricResolution string `json:"metricResolution,omitempty"`
 }
 
 type NotificationIntegrationsSpec struct {

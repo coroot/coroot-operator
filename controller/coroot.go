@@ -82,7 +82,22 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 	}
 
 	apiKeySecrets := map[string][]string{}
-	for _, p := range cr.Spec.Projects {
+	for i := range cr.Spec.Projects {
+		p := &cr.Spec.Projects[i]
+		if rc := p.RemoteCoroot; rc != nil {
+			if rc.ApiKeySecret != nil {
+				if _, err = r.GetSecret(ctx, cr, rc.ApiKeySecret); err != nil {
+					logErr("Failed to get Remote Coroot API Key: %s", err.Error())
+				} else {
+					rc.ApiKey = configEnvs.Add(rc.ApiKeySecret)
+				}
+				rc.ApiKeySecret = nil
+			}
+			if rc.Url == "" || rc.ApiKey == "" || rc.MetricResolution == "" {
+				logErr("Remote Coroot requires url, apiKey, and metricResolution.")
+				p.RemoteCoroot = nil
+			}
+		}
 		for i, k := range p.ApiKeys {
 			if k.KeySecret != nil {
 				apiKeySecrets[k.KeySecret.Name] = append(apiKeySecrets[k.KeySecret.Name], k.KeySecret.Key)
