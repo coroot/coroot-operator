@@ -196,7 +196,23 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 			}
 		}
 		if sso := cr.Spec.SSO; sso != nil && sso.Enabled {
-			if saml := sso.SAML; saml != nil {
+			valid := false
+			if oidc := sso.OIDC; oidc != nil {
+				if oidc.ClientSecretSecret != nil {
+					if _, err = r.GetSecret(ctx, cr, oidc.ClientSecretSecret); err != nil {
+						logErr("Failed to get OIDC Client Secret: %s", err.Error())
+					} else {
+						oidc.ClientSecret = configEnvs.Add(oidc.ClientSecretSecret)
+					}
+					oidc.ClientSecretSecret = nil
+				}
+				if oidc.IssuerURL != "" && oidc.ClientID != "" && oidc.ClientSecret != "" {
+					sso.Provider = "oidc"
+					valid = true
+				} else {
+					logErr("OIDC SSO requires issuerURL, clientID, and clientSecret")
+				}
+			} else if saml := sso.SAML; saml != nil {
 				metadata := saml.Metadata
 				if saml.MetadataSecret != nil {
 					if metadata, err = r.GetSecret(ctx, cr, saml.MetadataSecret); err != nil {
@@ -210,10 +226,15 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 					if err = ValidateSamlIdentityProviderMetadata(metadata); err != nil {
 						logErr("Invalid SAML Identity Provider Metadata: %s", err.Error())
 						saml.Metadata = ""
+					} else {
+						sso.Provider = "saml"
+						valid = true
 					}
 				}
+			} else {
+				logErr("SSO is enabled but neither saml nor oidc configuration is provided")
 			}
-			if sso.SAML == nil || sso.SAML.Metadata == "" {
+			if !valid {
 				sso.Enabled = false
 			}
 		}
