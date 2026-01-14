@@ -21,10 +21,14 @@ type CorootCloudRCASpec struct {
 
 type SSOSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
+	// Provider is set automatically based on which configuration section (saml or oidc) is defined.
+	Provider string `json:"provider,omitempty"`
 	// Default role for authenticated users (Admin, Editor, Viewer, or a custom role).
 	DefaultRole string `json:"defaultRole,omitempty"`
-	// SAML configuration.
+	// SAML configuration. Define this section to use SAML SSO.
 	SAML *SSOSAMLSpec `json:"saml,omitempty"`
+	// OIDC configuration. Define this section to use OIDC SSO.
+	OIDC *SSOOIDCSpec `json:"oidc,omitempty"`
 }
 
 type SSOSAMLSpec struct {
@@ -32,6 +36,18 @@ type SSOSAMLSpec struct {
 	Metadata string `json:"metadata,omitempty"`
 	// Secret containing the Metadata XML.
 	MetadataSecret *corev1.SecretKeySelector `json:"metadataSecret,omitempty"`
+}
+
+type SSOOIDCSpec struct {
+	// OIDC provider issuer URL (e.g., https://accounts.google.com).
+	// +kubebuilder:validation:Pattern="^https?://.+$"
+	IssuerURL string `json:"issuerURL,omitempty"`
+	// OAuth client ID.
+	ClientID string `json:"clientID,omitempty"`
+	// OAuth client secret.
+	ClientSecret string `json:"clientSecret,omitempty"`
+	// Secret containing the client secret.
+	ClientSecretSecret *corev1.SecretKeySelector `json:"clientSecretSecret,omitempty"`
 }
 
 type AISpec struct {
