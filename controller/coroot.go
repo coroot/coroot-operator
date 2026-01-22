@@ -9,9 +9,11 @@ import (
 	"strings"
 
 	corootv1 "github.io/coroot/operator/api/v1"
+	"golang.org/x/exp/maps"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -377,7 +379,7 @@ func (r *CorootReconciler) corootPVCs(cr *corootv1.Coroot) []*corev1.PersistentV
 	return res
 }
 
-func (r *CorootReconciler) corootIngress(cr *corootv1.Coroot) *networkingv1.Ingress {
+func (r *CorootReconciler) corootIngressV1(cr *corootv1.Coroot) *networkingv1.Ingress {
 	ls := Labels(cr, "ingress")
 	i := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -418,6 +420,57 @@ func (r *CorootReconciler) corootIngress(cr *corootv1.Coroot) *networkingv1.Ingr
 	}
 	if cr.Spec.Ingress.TLS != nil {
 		i.Spec.TLS = append(i.Spec.TLS, *cr.Spec.Ingress.TLS)
+	}
+	return i
+}
+
+func (r *CorootReconciler) corootIngressV1Beta1(cr *corootv1.Coroot) *networkingv1beta1.Ingress {
+	ls := Labels(cr, "ingress")
+	i := &networkingv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cr.Name,
+			Namespace: cr.Namespace,
+			Labels:    ls,
+		},
+	}
+	if cr.Spec.Ingress == nil {
+		return i
+	}
+	i.Annotations = maps.Clone(cr.Spec.Ingress.Annotations)
+	// Set IngressClass via annotation for v1beta1
+	if cr.Spec.Ingress.ClassName != nil {
+		if i.Annotations == nil {
+			i.Annotations = map[string]string{}
+		}
+		i.Annotations["kubernetes.io/ingress.class"] = *cr.Spec.Ingress.ClassName
+	}
+	path := cr.Spec.Ingress.Path
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	pathType := networkingv1beta1.PathTypePrefix
+	i.Spec = networkingv1beta1.IngressSpec{
+		Rules: []networkingv1beta1.IngressRule{{
+			Host: cr.Spec.Ingress.Host,
+			IngressRuleValue: networkingv1beta1.IngressRuleValue{
+				HTTP: &networkingv1beta1.HTTPIngressRuleValue{
+					Paths: []networkingv1beta1.HTTPIngressPath{{
+						Path:     path,
+						PathType: &pathType,
+						Backend: networkingv1beta1.IngressBackend{
+							ServiceName: fmt.Sprintf("%s-coroot", cr.Name),
+							ServicePort: intstr.FromString("http"),
+						},
+					}},
+				},
+			},
+		}},
+	}
+	if cr.Spec.Ingress.TLS != nil {
+		i.Spec.TLS = append(i.Spec.TLS, networkingv1beta1.IngressTLS{
+			Hosts:      cr.Spec.Ingress.TLS.Hosts,
+			SecretName: cr.Spec.Ingress.TLS.SecretName,
+		})
 	}
 	return i
 }

@@ -31,6 +31,7 @@ help: ## Display this help.
 generate: controller-gen ## Generate WebhookConfiguration, ClusterRole, and CustomResourceDefinition manifests; DeepCopy method implementations.
 	$(CONTROLLER_GEN) rbac:roleName=coroot-operator crd webhook paths="./..."
 	$(CONTROLLER_GEN) object paths="./..."
+	./hack/generate-legacy-crd.sh config/crd/coroot.com_coroots.yaml config/crd/coroot.com_coroots_legacy.yaml
 
 
 .PHONY: fmt
