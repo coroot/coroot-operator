@@ -11,10 +11,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,6 +26,9 @@ import (
 
 const (
 	AppVersionsUpdateInterval = time.Hour
+
+	IngressAPIV1      = "networking.k8s.io/v1"
+	IngressAPIV1Beta1 = "networking.k8s.io/v1beta1"
 )
 
 type CorootReconciler struct {
@@ -37,6 +42,10 @@ type CorootReconciler struct {
 	versionsLock sync.Mutex
 
 	deploymentDeleted bool
+
+	// IngressAPIVersion tracks which Ingress API is available
+	// "networking.k8s.io/v1" for K8s 1.19+, "networking.k8s.io/v1beta1" for older
+	IngressAPIVersion string
 }
 
 func NewCorootReconciler(mgr ctrl.Manager) *CorootReconciler {
@@ -47,6 +56,10 @@ func NewCorootReconciler(mgr ctrl.Manager) *CorootReconciler {
 		instances: map[ctrl.Request]bool{},
 		versions:  map[App]string{},
 	}
+
+	// Detect which Ingress API version is available
+	r.IngressAPIVersion = detectIngressAPIVersion(mgr)
+	ctrl.Log.Info("Detected Ingress API version", "version", r.IngressAPIVersion)
 
 	r.fetchAppVersions()
 	go func() {
@@ -64,6 +77,28 @@ func NewCorootReconciler(mgr ctrl.Manager) *CorootReconciler {
 	}()
 
 	return r
+}
+
+func detectIngressAPIVersion(mgr ctrl.Manager) string {
+	cfg := mgr.GetConfig()
+	dc, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		ctrl.Log.Error(err, "Failed to create discovery client, defaulting to v1beta1 Ingress")
+		return IngressAPIV1Beta1
+	}
+
+	// Check if networking.k8s.io/v1 Ingress is available
+	resources, err := dc.ServerResourcesForGroupVersion("networking.k8s.io/v1")
+	if err == nil {
+		for _, r := range resources.APIResources {
+			if r.Kind == "Ingress" {
+				return IngressAPIV1
+			}
+		}
+	}
+
+	// Fallback to v1beta1
+	return IngressAPIV1Beta1
 }
 
 // +kubebuilder:rbac:groups=coroot.com,resources=coroots,verbs=get;list;watch;create;update;patch;delete
@@ -143,7 +178,7 @@ func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		_ = r.Delete(ctx, r.corootDeployment(cr))
 		r.deploymentDeleted = true
 	}
-	r.CreateOrUpdateIngress(ctx, cr, r.corootIngress(cr), cr.Spec.Ingress == nil)
+	r.CreateOrUpdateIngress(ctx, cr, cr.Spec.Ingress == nil)
 
 	if cr.Spec.ExternalPrometheus == nil && !cr.Spec.StoreMetricsInClickhouse {
 		r.CreateOrUpdateServiceAccount(ctx, cr, "prometheus", sccNonroot)
@@ -302,6 +337,19 @@ func (r *CorootReconciler) CreateOrUpdateService(ctx context.Context, cr *coroot
 	spec := s.Spec
 	annotations := s.Annotations
 	r.CreateOrUpdate(ctx, cr, s, false, false, func() error {
+		existingNodePorts := map[string]int32{}
+		for _, p := range s.Spec.Ports {
+			if p.NodePort != 0 {
+				existingNodePorts[p.Name] = p.NodePort
+			}
+		}
+		for i := range spec.Ports {
+			if spec.Ports[i].NodePort == 0 {
+				if np, ok := existingNodePorts[spec.Ports[i].Name]; ok {
+					spec.Ports[i].NodePort = np
+				}
+			}
+		}
 		err := MergeSpecs(s, &s.Spec, spec, annotations)
 		s.Spec.Ports = spec.Ports
 		return err
@@ -338,7 +386,7 @@ func (r *CorootReconciler) CreateOrUpdateClusterRoleBinding(ctx context.Context,
 	r.CreateOrUpdate(ctx, cr, b, false, true, nil)
 }
 
-func (r *CorootReconciler) CreateOrUpdateIngress(ctx context.Context, cr *corootv1.Coroot, i *networkingv1.Ingress, delete bool) {
+func (r *CorootReconciler) CreateOrUpdateIngressV1(ctx context.Context, cr *corootv1.Coroot, i *networkingv1.Ingress, delete bool) {
 	spec := i.Spec
 	annotations := i.Annotations
 	r.CreateOrUpdate(ctx, cr, i, delete, false, func() error {
@@ -346,8 +394,24 @@ func (r *CorootReconciler) CreateOrUpdateIngress(ctx context.Context, cr *coroot
 	})
 }
 
+func (r *CorootReconciler) CreateOrUpdateIngressV1Beta1(ctx context.Context, cr *corootv1.Coroot, i *networkingv1beta1.Ingress, delete bool) {
+	spec := i.Spec
+	annotations := i.Annotations
+	r.CreateOrUpdate(ctx, cr, i, delete, false, func() error {
+		return MergeSpecs(i, &i.Spec, spec, annotations)
+	})
+}
+
+func (r *CorootReconciler) CreateOrUpdateIngress(ctx context.Context, cr *corootv1.Coroot, delete bool) {
+	if r.IngressAPIVersion == IngressAPIV1 {
+		r.CreateOrUpdateIngressV1(ctx, cr, r.corootIngressV1(cr), delete)
+	} else {
+		r.CreateOrUpdateIngressV1Beta1(ctx, cr, r.corootIngressV1Beta1(cr), delete)
+	}
+}
+
 func (r *CorootReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&corootv1.Coroot{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
@@ -358,9 +422,16 @@ func (r *CorootReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
 		Owns(&corev1.Secret{}).
-		Owns(&networkingv1.Ingress{}).
-		Owns(&corev1.ConfigMap{}).
-		Complete(r)
+		Owns(&corev1.ConfigMap{})
+
+	// Watch Ingress using the detected API version
+	if r.IngressAPIVersion == IngressAPIV1 {
+		builder = builder.Owns(&networkingv1.Ingress{})
+	} else {
+		builder = builder.Owns(&networkingv1beta1.Ingress{})
+	}
+
+	return builder.Complete(r)
 }
 
 func Labels(cr *corootv1.Coroot, component string) map[string]string {
