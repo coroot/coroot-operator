@@ -1,12 +1,14 @@
 package controller
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
+	"sort"
+	"time"
 
+	"github.com/coreos/go-semver/semver"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	corootv1 "github.io/coroot/operator/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -92,23 +94,30 @@ func (r *CorootReconciler) fetchAppVersions() {
 }
 
 func (r *CorootReconciler) fetchAppVersion(app App) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("https://api.github.com/repos/coroot/%s/releases/latest", app))
+	repo, err := name.NewRepository(CorootImageRegistry + "/" + string(app))
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("%s", resp.Status)
-	}
-	data, err := io.ReadAll(resp.Body)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	tags, err := remote.List(repo, remote.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}
-	var release struct {
-		TagName string `json:"tag_name"`
+
+	type item struct {
+		v   *semver.Version
+		tag string
 	}
-	if err = json.Unmarshal(data, &release); err != nil {
-		return "", err
+	var items []item
+	for _, t := range tags {
+		if v, err := semver.NewVersion(t); err == nil {
+			items = append(items, item{v: v, tag: t})
+		}
 	}
-	return strings.TrimPrefix(release.TagName, "v"), nil
+	if len(items) == 0 {
+		return "", fmt.Errorf("no tags found")
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].v.LessThan(*items[j].v) })
+	return items[len(items)-1].tag, nil
 }
