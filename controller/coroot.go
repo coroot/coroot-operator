@@ -734,18 +734,20 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 	}
 
 	type Config struct {
-		Projects    []corootv1.ProjectSpec    `json:"projects,omitempty"`
-		SSO         *corootv1.SSOSpec         `json:"sso,omitempty"`
-		AI          *corootv1.AISpec          `json:"ai,omitempty"`
-		CorootCloud *corootv1.CorootCloudSpec `json:"corootCloud,omitempty"`
-		TLS         *TLS                      `json:"tls,omitempty"`
+		DisableBuiltinAlerts bool                      `json:"disableBuiltinAlerts,omitempty"`
+		Projects             []corootv1.ProjectSpec    `json:"projects,omitempty"`
+		SSO                  *corootv1.SSOSpec         `json:"sso,omitempty"`
+		AI                   *corootv1.AISpec          `json:"ai,omitempty"`
+		CorootCloud          *corootv1.CorootCloudSpec `json:"corootCloud,omitempty"`
+		TLS                  *TLS                      `json:"tls,omitempty"`
 	}
 
 	var cfg = Config{
-		Projects:    cr.Spec.Projects,
-		SSO:         cr.Spec.SSO,
-		AI:          cr.Spec.AI,
-		CorootCloud: cr.Spec.CorootCloud,
+		DisableBuiltinAlerts: cr.Spec.DisableBuiltinAlerts,
+		Projects:             cr.Spec.Projects,
+		SSO:                  cr.Spec.SSO,
+		AI:                   cr.Spec.AI,
+		CorootCloud:          cr.Spec.CorootCloud,
 	}
 	if cr.Spec.TLS != nil {
 		cfg.TLS = &TLS{
