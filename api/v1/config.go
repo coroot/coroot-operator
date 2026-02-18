@@ -105,6 +105,8 @@ type ProjectSpec struct {
 	ApplicationCategories []ApplicationCategorySpec `json:"applicationCategories,omitempty"`
 	// Custom applications.
 	CustomApplications []CustomApplicationSpec `json:"customApplications,omitempty"`
+	// Alerting rules. Rules defined here are shown with a lock icon in the UI and cannot be edited or deleted through the UI.
+	AlertingRules []AlertingRuleSpec `json:"alertingRules,omitempty"`
 	// Inspection overrides.
 	InspectionOverrides *InspectionOverrides `json:"inspectionOverrides,omitempty"`
 }
@@ -264,6 +266,84 @@ type ApplicationCategoryNotificationSettingsOpsgenieSpec struct {
 
 type ApplicationCategoryNotificationSettingsWebhookSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
+}
+
+type AlertingRuleSpec struct {
+	// Rule ID (required). For built-in rules, use the existing rule ID (e.g., storage-space, memory-pressure).
+	// For custom rules, choose any unique ID. The ID is shown in the rule detail dialog.
+	// +kubebuilder:validation:Required
+	Id string `json:"id"`
+	// Rule name.
+	Name *string `json:"name,omitempty"`
+	// Alert source configuration.
+	Source *AlertSourceSpec `json:"source,omitempty"`
+	// Application selector.
+	Selector *AppSelectorSpec `json:"selector,omitempty"`
+	// Severity level (warning or critical).
+	// +kubebuilder:validation:Enum=warning;critical
+	Severity *string `json:"severity,omitempty"`
+	// How long the condition must be true before firing (e.g., 5m, 1h).
+	// +kubebuilder:validation:Pattern="^[0-9]+[smhdwy]$"
+	For *string `json:"for,omitempty"`
+	// How long to keep firing after condition clears (e.g., 5m).
+	// +kubebuilder:validation:Pattern="^[0-9]+[smhdwy]$"
+	KeepFiringFor *string `json:"keepFiringFor,omitempty"`
+	// Notification templates.
+	Templates *AlertTemplatesSpec `json:"templates,omitempty"`
+	// Override the notification category for this rule.
+	NotificationCategory *string `json:"notificationCategory,omitempty"`
+	// Whether the rule is enabled.
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type AlertSourceSpec struct {
+	// Source type: check, log_patterns, or promql.
+	// +kubebuilder:validation:Enum=check;log_patterns;promql
+	Type string `json:"type"`
+	// Check source configuration (required if type is check).
+	Check *CheckSourceSpec `json:"check,omitempty"`
+	// Log pattern source configuration (required if type is log_patterns).
+	LogPattern *LogPatternSourceSpec `json:"logPattern,omitempty"`
+	// PromQL source configuration (required if type is promql).
+	PromQL *PromQLSourceSpec `json:"promql,omitempty"`
+}
+
+type CheckSourceSpec struct {
+	// The inspection check ID (e.g., cpu-utilization, storage-space).
+	CheckId string `json:"checkId"`
+}
+
+type LogPatternSourceSpec struct {
+	// Log severities to match (e.g., ["error", "fatal"]).
+	Severities []string `json:"severities"`
+	// Minimum number of occurrences before alerting.
+	MinCount *int `json:"minCount,omitempty"`
+	// Maximum number of alerts per application for this rule.
+	MaxAlertsPerApp *int `json:"maxAlertsPerApp,omitempty"`
+	// Use AI to evaluate log patterns and reduce noise.
+	EvaluateWithAi *bool `json:"evaluateWithAi,omitempty"`
+}
+
+type PromQLSourceSpec struct {
+	// PromQL expression that triggers the alert when it returns results.
+	Expression string `json:"expression"`
+}
+
+type AppSelectorSpec struct {
+	// Selector type: all, category, or applications.
+	// +kubebuilder:validation:Enum=all;category;applications
+	Type string `json:"type"`
+	// Application categories to match (when type is category).
+	Categories []string `json:"categories,omitempty"`
+	// Application ID patterns to match (when type is applications).
+	ApplicationIdPatterns []string `json:"applicationIdPatterns,omitempty"`
+}
+
+type AlertTemplatesSpec struct {
+	// Summary template.
+	Summary string `json:"summary,omitempty"`
+	// Description template.
+	Description string `json:"description,omitempty"`
 }
 
 type CustomApplicationSpec struct {
