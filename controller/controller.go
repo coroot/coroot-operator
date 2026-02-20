@@ -3,6 +3,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,15 +48,33 @@ type CorootReconciler struct {
 	// IngressAPIVersion tracks which Ingress API is available
 	// "networking.k8s.io/v1" for K8s 1.19+, "networking.k8s.io/v1beta1" for older
 	IngressAPIVersion string
+
+	RegistryConfig *RegistryConfig
 }
 
 func NewCorootReconciler(mgr ctrl.Manager) *CorootReconciler {
+	registryCfg, err := NewRegistryConfig(
+		os.Getenv("REGISTRY_URL"),
+		os.Getenv("REGISTRY_PULL_SECRET"),
+		strings.EqualFold(os.Getenv("REGISTRY_TLS_SKIP_VERIFY"), "true"),
+	)
+	if err != nil {
+		ctrl.Log.Error(err, "failed to configure registry")
+		os.Exit(1)
+	}
+	ctrl.Log.Info("Registry configuration",
+		"imagePrefix", registryCfg.ImagePrefix,
+		"pullSecret", registryCfg.PullSecretName,
+		"tlsSkipVerify", registryCfg.TLSSkipVerify,
+	)
+
 	r := &CorootReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		instances: map[ctrl.Request]bool{},
-		versions:  map[App]string{},
+		instances:      map[ctrl.Request]bool{},
+		versions:       map[App]string{},
+		RegistryConfig: registryCfg,
 	}
 
 	// Detect which Ingress API version is available

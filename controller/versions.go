@@ -10,12 +10,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	corootv1 "github.io/coroot/operator/api/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
-	CorootImageRegistry = "ghcr.io/coroot"
-
 	ClickhouseImage       = "clickhouse:25.11.2-ubi9-0"
 	PrometheusImage       = "prometheus:2.55.1-ubi9-0"
 	KubeStateMetricsImage = "kube-state-metrics:2.15.0-ubi9-0"
@@ -62,6 +61,9 @@ func (r *CorootReconciler) getAppImage(cr *corootv1.Coroot, app App) corootv1.Im
 	r.versionsLock.Lock()
 	defer r.versionsLock.Unlock()
 	image.Name = r.versions[app]
+	if r.RegistryConfig.PullSecretName != "" {
+		image.PullSecrets = []corev1.LocalObjectReference{{Name: r.RegistryConfig.PullSecretName}}
+	}
 	return image
 }
 
@@ -82,25 +84,23 @@ func (r *CorootReconciler) fetchAppVersions() {
 	r.versionsLock.Lock()
 	defer r.versionsLock.Unlock()
 	for app, v := range versions {
-		r.versions[app] = fmt.Sprintf("%s:%s", app, v)
+		r.versions[app] = r.RegistryConfig.Image(fmt.Sprintf("%s:%s", app, v))
 	}
-	r.versions[AppClickhouse] = ClickhouseImage
-	r.versions[AppClickhouseKeeper] = ClickhouseImage
-	r.versions[AppPrometheus] = PrometheusImage
-	r.versions[AppKubeStateMetrics] = KubeStateMetricsImage
-	for app, image := range r.versions {
-		r.versions[app] = CorootImageRegistry + "/" + image
-	}
+	r.versions[AppClickhouse] = r.RegistryConfig.Image(ClickhouseImage)
+	r.versions[AppClickhouseKeeper] = r.RegistryConfig.Image(ClickhouseImage)
+	r.versions[AppPrometheus] = r.RegistryConfig.Image(PrometheusImage)
+	r.versions[AppKubeStateMetrics] = r.RegistryConfig.Image(KubeStateMetricsImage)
 }
 
 func (r *CorootReconciler) fetchAppVersion(app App) (string, error) {
-	repo, err := name.NewRepository(CorootImageRegistry + "/" + string(app))
+	repo, err := name.NewRepository(r.RegistryConfig.Image(string(app)))
 	if err != nil {
 		return "", err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	tags, err := remote.List(repo, remote.WithContext(ctx))
+	opts := append(r.RegistryConfig.RemoteOptions(), remote.WithContext(ctx))
+	tags, err := remote.List(repo, opts...)
 	if err != nil {
 		return "", err
 	}
