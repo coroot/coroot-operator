@@ -162,6 +162,8 @@ type NotificationIntegrationSlackSpec struct {
 	Incidents bool `json:"incidents,omitempty"`
 	// Notify of deployments.
 	Deployments bool `json:"deployments,omitempty"`
+	// Notify of alerts.
+	Alerts *bool `json:"alerts,omitempty"`
 }
 
 type NotificationIntegrationTeamsSpec struct {
@@ -173,6 +175,8 @@ type NotificationIntegrationTeamsSpec struct {
 	Incidents bool `json:"incidents,omitempty"`
 	// Notify of deployments.
 	Deployments bool `json:"deployments,omitempty"`
+	// Notify of alerts.
+	Alerts *bool `json:"alerts,omitempty"`
 }
 
 type NotificationIntegrationPagerdutySpec struct {
@@ -182,6 +186,8 @@ type NotificationIntegrationPagerdutySpec struct {
 	IntegrationKeySecret *corev1.SecretKeySelector `json:"integrationKeySecret,omitempty"`
 	// Notify of incidents (SLO violation).
 	Incidents bool `json:"incidents,omitempty"`
+	// Notify of alerts.
+	Alerts *bool `json:"alerts,omitempty"`
 }
 
 type NotificationIntegrationOpsgenieSpec struct {
@@ -193,6 +199,8 @@ type NotificationIntegrationOpsgenieSpec struct {
 	EUInstance bool `json:"euInstance,omitempty"`
 	// Notify of incidents (SLO violation).
 	Incidents bool `json:"incidents,omitempty"`
+	// Notify of alerts.
+	Alerts *bool `json:"alerts,omitempty"`
 }
 
 type NotificationIntegrationWebhookSpec struct {
@@ -209,10 +217,14 @@ type NotificationIntegrationWebhookSpec struct {
 	Incidents bool `json:"incidents,omitempty"`
 	// Notify of deployments.
 	Deployments bool `json:"deployments,omitempty"`
+	// Notify of alerts.
+	Alerts *bool `json:"alerts,omitempty"`
 	// Incident template (required if `incidents: true`).
 	IncidentTemplate string `json:"incidentTemplate,omitempty"`
 	// Deployment template (required if `deployments: true`).
 	DeploymentTemplate string `json:"deploymentTemplate,omitempty"`
+	// Alert template (required if `alerts: true`).
+	AlertTemplate string `json:"alertTemplate,omitempty"`
 }
 
 type ApplicationCategorySpec struct {
@@ -229,6 +241,17 @@ type ApplicationCategoryNotificationSettingsSpec struct {
 	Incidents ApplicationCategoryNotificationSettingsIncidentsSpec `json:"incidents,omitempty"`
 	// Notify of deployments.
 	Deployments ApplicationCategoryNotificationSettingsDeploymentsSpec `json:"deployments,omitempty"`
+	// Notify of alerts.
+	Alerts ApplicationCategoryNotificationSettingsAlertsSpec `json:"alerts,omitempty"`
+}
+
+type ApplicationCategoryNotificationSettingsAlertsSpec struct {
+	Enabled   bool                                                  `json:"enabled,omitempty"`
+	Slack     *ApplicationCategoryNotificationSettingsSlackSpec     `json:"slack,omitempty"`
+	Teams     *ApplicationCategoryNotificationSettingsTeamsSpec     `json:"teams,omitempty"`
+	Pagerduty *ApplicationCategoryNotificationSettingsPagerdutySpec `json:"pagerduty,omitempty"`
+	Opsgenie  *ApplicationCategoryNotificationSettingsOpsgenieSpec  `json:"opsgenie,omitempty"`
+	Webhook   *ApplicationCategoryNotificationSettingsWebhookSpec   `json:"webhook,omitempty"`
 }
 
 type ApplicationCategoryNotificationSettingsIncidentsSpec struct {
