@@ -320,13 +320,15 @@ type AlertingRuleSpec struct {
 }
 
 type AlertSourceSpec struct {
-	// Source type: check, log_patterns, or promql.
-	// +kubebuilder:validation:Enum=check;log_patterns;promql
+	// Source type: check, log_patterns, kubernetes_events, or promql.
+	// +kubebuilder:validation:Enum=check;log_patterns;kubernetes_events;promql
 	Type string `json:"type"`
 	// Check source configuration (required if type is check).
 	Check *CheckSourceSpec `json:"check,omitempty"`
 	// Log pattern source configuration (required if type is log_patterns).
 	LogPattern *LogPatternSourceSpec `json:"logPattern,omitempty"`
+	// Kubernetes events source configuration (required if type is kubernetes_events).
+	KubernetesEvents *KubernetesEventsSourceSpec `json:"kubernetesEvents,omitempty"`
 	// PromQL source configuration (required if type is promql).
 	PromQL *PromQLSourceSpec `json:"promql,omitempty"`
 }
@@ -344,6 +346,15 @@ type LogPatternSourceSpec struct {
 	// Maximum number of alerts per application for this rule.
 	MaxAlertsPerApp *int `json:"maxAlertsPerApp,omitempty"`
 	// Use AI to evaluate log patterns and reduce noise.
+	EvaluateWithAi *bool `json:"evaluateWithAi,omitempty"`
+}
+
+type KubernetesEventsSourceSpec struct {
+	// Minimum number of occurrences before alerting.
+	MinCount *int `json:"minCount,omitempty"`
+	// Maximum number of alerts per application for this rule.
+	MaxAlertsPerApp *int `json:"maxAlertsPerApp,omitempty"`
+	// Use AI to evaluate Kubernetes events and reduce noise.
 	EvaluateWithAi *bool `json:"evaluateWithAi,omitempty"`
 }
 
