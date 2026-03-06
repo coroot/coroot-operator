@@ -43,6 +43,23 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 		cr.Spec.Service.GRPCPort = 4317
 	}
 
+	if s3 := cr.Spec.Clickhouse.S3; s3 != nil {
+		storageSize := cr.Spec.Clickhouse.Storage.Size
+		if storageSize.IsZero() {
+			storageSize, _ = resource.ParseQuantity("100Gi")
+		}
+		cacheSize := s3.CacheSize
+		if cacheSize.IsZero() {
+			cacheSize, _ = resource.ParseQuantity("10Gi")
+		}
+		if cacheSize.Cmp(storageSize) >= 0 {
+			logErr("ClickHouse S3 cache size (%s) must be less than storage size (%s).", cacheSize.String(), storageSize.String())
+		}
+		if !strings.HasSuffix(s3.Endpoint, "/") {
+			s3.Endpoint += "/"
+		}
+	}
+
 	var err error
 
 	if tls := cr.Spec.TLS; tls != nil {
