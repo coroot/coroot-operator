@@ -4,6 +4,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -149,6 +150,34 @@ type ClickhouseSpec struct {
 	LogLevel string `json:"logLevel,omitempty"`
 
 	Keeper ClickhouseKeeperSpec `json:"keeper,omitempty"`
+
+	// S3 storage configuration for ClickHouse (optional).
+	S3 *ClickhouseS3Spec `json:"s3,omitempty"`
+}
+
+type ClickhouseS3Spec struct {
+	// S3 endpoint URL. E.g., https://s3.amazonaws.com/my-bucket/clickhouse/
+	Endpoint string `json:"endpoint"`
+	// S3 region (optional).
+	Region string `json:"region,omitempty"`
+	// S3 credentials (optional — omit for IAM/IRSA/workload identity).
+	Credentials *S3Credentials `json:"credentials,omitempty"`
+	// Local cache size for S3 reads (default: 10Gi). Must be less than clickhouse storage size.
+	CacheSize resource.Quantity `json:"cacheSize,omitempty"`
+	// Storage mode: "tiered" keeps recent data on local disk and moves older data to S3;
+	// "s3only" stores all data on S3 using local disk only for cache.
+	// +kubebuilder:validation:Enum="tiered";"s3only"
+	// +kubebuilder:default="tiered"
+	Mode string `json:"mode,omitempty"`
+	// Fraction of local disk free space that triggers moving data to S3 (default: 0.1). Only used in tiered mode.
+	MoveFactor string `json:"moveFactor,omitempty"`
+}
+
+type S3Credentials struct {
+	// Secret reference for the access key ID.
+	AccessKeyID *corev1.SecretKeySelector `json:"accessKeyId,omitempty"`
+	// Secret reference for the secret access key.
+	SecretAccessKey *corev1.SecretKeySelector `json:"secretAccessKey,omitempty"`
 }
 
 type ClickhouseKeeperSpec struct {

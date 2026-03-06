@@ -238,9 +238,34 @@ func (r *CorootReconciler) clickhouseStatefulSets(cr *corootv1.Coroot) []*appsv1
 			},
 		}
 
+		if s3 := cr.Spec.Clickhouse.S3; s3 != nil && s3.Credentials != nil {
+			s3Envs := []corev1.EnvVar{}
+			if s3.Credentials.AccessKeyID != nil {
+				s3Envs = append(s3Envs, corev1.EnvVar{
+					Name:      "AWS_ACCESS_KEY_ID",
+					ValueFrom: &corev1.EnvVarSource{SecretKeyRef: s3.Credentials.AccessKeyID},
+				})
+			}
+			if s3.Credentials.SecretAccessKey != nil {
+				s3Envs = append(s3Envs, corev1.EnvVar{
+					Name:      "AWS_SECRET_ACCESS_KEY",
+					ValueFrom: &corev1.EnvVarSource{SecretKeyRef: s3.Credentials.SecretAccessKey},
+				})
+			}
+			ss.Spec.Template.Spec.Containers[0].Env = append(ss.Spec.Template.Spec.Containers[0].Env, s3Envs...)
+		}
+
 		res = append(res, ss)
 	}
 	return res
+}
+
+type s3ConfigParams struct {
+	Endpoint   string
+	Region     string
+	CacheSize  string
+	Mode       string
+	MoveFactor string
 }
 
 func clickhouseConfigCmd(filename string, cr *corootv1.Coroot, shards, replicas, keepers int) string {
@@ -251,6 +276,7 @@ func clickhouseConfigCmd(filename string, cr *corootv1.Coroot, shards, replicas,
 		Replicas  []int
 		Keepers   []int
 		LogLevel  string
+		S3        *s3ConfigParams
 	}{
 		Namespace: cr.Namespace,
 		Name:      cr.Name,
@@ -267,6 +293,27 @@ func clickhouseConfigCmd(filename string, cr *corootv1.Coroot, shards, replicas,
 	}
 	if params.LogLevel == "" {
 		params.LogLevel = "warning"
+	}
+	if s3 := cr.Spec.Clickhouse.S3; s3 != nil {
+		cacheSize := s3.CacheSize
+		if cacheSize.IsZero() {
+			cacheSize, _ = resource.ParseQuantity("10Gi")
+		}
+		mode := s3.Mode
+		if mode == "" {
+			mode = "tiered"
+		}
+		moveFactor := s3.MoveFactor
+		if moveFactor == "" {
+			moveFactor = "0.1"
+		}
+		params.S3 = &s3ConfigParams{
+			Endpoint:   s3.Endpoint,
+			Region:     s3.Region,
+			CacheSize:  cacheSize.String(),
+			Mode:       mode,
+			MoveFactor: moveFactor,
+		}
 	}
 	var out bytes.Buffer
 	_ = clickhouseConfigTemplate.Execute(&out, params)
@@ -345,6 +392,58 @@ var clickhouseConfigTemplate = template.Must(template.New("").Parse(`
 <distributed_ddl>
     <path>/clickhouse/task_queue/ddl</path>
 </distributed_ddl>
+{{- if .S3 }}
+
+<merge_tree>
+    <allow_remote_fs_zero_copy_replication>false</allow_remote_fs_zero_copy_replication>
+    <storage_policy>s3_{{ .S3.Mode }}</storage_policy>
+</merge_tree>
+
+<storage_configuration>
+    <disks>
+        <s3_disk>
+            <type>s3</type>
+            <endpoint>{{ .S3.Endpoint }}{shard}/{replica}/</endpoint>
+            {{- if .S3.Region }}
+            <region>{{ .S3.Region }}</region>
+            {{- end }}
+            <use_environment_credentials>true</use_environment_credentials>
+        </s3_disk>
+        <s3_cache>
+            <type>cache</type>
+            <disk>s3_disk</disk>
+            <path>/var/lib/clickhouse/s3_cache/</path>
+            <max_size>{{ .S3.CacheSize }}</max_size>
+            <cache_on_write_operations>1</cache_on_write_operations>
+        </s3_cache>
+    </disks>
+    <policies>
+        {{- if eq .S3.Mode "tiered" }}
+        <s3_tiered>
+            <volumes>
+                <hot>
+                    <disk>default</disk>
+                </hot>
+                <cold>
+                    <disk>s3_cache</disk>
+                    <perform_ttl_move_on_insert>false</perform_ttl_move_on_insert>
+					<prefer_not_to_merge>false</prefer_not_to_merge>
+                </cold>
+            </volumes>
+            <move_factor>{{ .S3.MoveFactor }}</move_factor>
+        </s3_tiered>
+        {{- else }}
+        <s3_s3only>
+            <volumes>
+                <main>
+                    <disk>s3_cache</disk>
+                </main>
+            </volumes>
+        </s3_s3only>
+        {{- end }}
+    </policies>
+</storage_configuration>
+{{- end }}
 
 </clickhouse>
 `))
