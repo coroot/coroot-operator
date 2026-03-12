@@ -21,6 +21,8 @@ type CorootCloudRCASpec struct {
 
 type SSOSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
+	// Disable password login and only allow SSO authentication.
+	ForceSSO bool `json:"forceSSO,omitempty"`
 	// Provider is set automatically based on which configuration section (saml or oidc) is defined.
 	Provider string `json:"provider,omitempty"`
 	// Default role for authenticated users (Admin, Editor, Viewer, or a custom role).
