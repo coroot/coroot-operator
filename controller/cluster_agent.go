@@ -3,6 +3,8 @@ package controller
 import (
 	"cmp"
 	"fmt"
+	"os"
+	"strings"
 
 	corootv1 "github.io/coroot/operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -35,6 +37,10 @@ func (r *CorootReconciler) clusterAgentClusterRoleBinding(cr *corootv1.Coroot) *
 
 func (r *CorootReconciler) clusterAgentClusterRole(cr *corootv1.Coroot) *rbacv1.ClusterRole {
 	verbs := []string{"get", "list", "watch"}
+	coreResources := []string{"namespaces", "nodes", "pods", "services", "endpoints", "persistentvolumeclaims", "persistentvolumes", "events"}
+	if !strings.EqualFold(os.Getenv("DENY_GLOBAL_SECRETS"), "true") {
+		coreResources = append(coreResources, "secrets")
+	}
 	role := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   cr.Name + "-cluster-agent",
@@ -43,7 +49,7 @@ func (r *CorootReconciler) clusterAgentClusterRole(cr *corootv1.Coroot) *rbacv1.
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"namespaces", "nodes", "pods", "services", "endpoints", "persistentvolumeclaims", "persistentvolumes", "secrets", "events"},
+				Resources: coreResources,
 				Verbs:     verbs,
 			},
 			{
