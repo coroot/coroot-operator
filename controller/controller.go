@@ -441,7 +441,6 @@ func (r *CorootReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
-		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{})
 
 	// Watch Ingress using the detected API version
