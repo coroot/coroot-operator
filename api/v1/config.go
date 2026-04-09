@@ -215,6 +215,8 @@ type NotificationIntegrationWebhookSpec struct {
 	BasicAuth *BasicAuthSpec `json:"basicAuth,omitempty"`
 	// Custom headers to include in requests.
 	CustomHeaders []HeaderSpec `json:"customHeaders,omitempty"`
+	// Static key-value pairs included as top-level fields in template data.
+	CustomFields map[string]string `json:"customFields,omitempty"`
 	// Notify of incidents (SLO violation).
 	Incidents bool `json:"incidents,omitempty"`
 	// Notify of deployments.

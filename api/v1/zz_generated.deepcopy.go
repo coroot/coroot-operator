@@ -1427,6 +1427,13 @@ func (in *NotificationIntegrationWebhookSpec) DeepCopyInto(out *NotificationInte
 		*out = make([]HeaderSpec, len(*in))
 		copy(*out, *in)
 	}
+	if in.CustomFields != nil {
+		in, out := &in.CustomFields, &out.CustomFields
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Alerts != nil {
 		in, out := &in.Alerts, &out.Alerts
 		*out = new(bool)
