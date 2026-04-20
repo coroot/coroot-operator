@@ -42,6 +42,9 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 	if !cr.Spec.GRPC.Disabled && cr.Spec.Service.GRPCPort == 0 {
 		cr.Spec.Service.GRPCPort = 4317
 	}
+	if cr.Spec.TLS != nil && cr.Spec.Service.HTTPSPort == 0 {
+		cr.Spec.Service.HTTPSPort = 8443
+	}
 
 	if s3 := cr.Spec.Clickhouse.S3; s3 != nil {
 		storageSize := cr.Spec.Clickhouse.Storage.Size
@@ -350,6 +353,15 @@ func (r *CorootReconciler) corootService(cr *corootv1.Coroot) *corev1.Service {
 			NodePort:   cr.Spec.Service.GRPCNodePort,
 		})
 	}
+	if cr.Spec.Service.HTTPSPort != 0 {
+		ports = append(ports, corev1.ServicePort{
+			Name:       "https",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       cr.Spec.Service.HTTPSPort,
+			TargetPort: intstr.FromString("https"),
+			NodePort:   cr.Spec.Service.HTTPSNodePort,
+		})
+	}
 
 	s.Spec = corev1.ServiceSpec{
 		Selector: ls,
@@ -536,9 +548,20 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 		{Name: "data", MountPath: "/data"},
 	}
 	env := []corev1.EnvVar{
-		{Name: "LISTEN", Value: ":8080"},
 		{Name: "GLOBAL_REFRESH_INTERVAL", Value: refreshInterval},
 		{Name: "INSTALLATION_TYPE", Value: "k8s-operator"},
+	}
+	if cr.Spec.HTTPDisabled {
+		env = append(env, corev1.EnvVar{Name: "HTTP_DISABLED", Value: "true"})
+	} else {
+		env = append(env, corev1.EnvVar{Name: "LISTEN", Value: ":8080"})
+	}
+	httpsListen := cmp.Or(cr.Spec.HTTPSListen, ":8443")
+	if cr.Spec.Service.HTTPSPort != 0 {
+		env = append(env, corev1.EnvVar{Name: "HTTPS_LISTEN", Value: httpsListen})
+		_, port, _ := strings.Cut(httpsListen, ":")
+		p, _ := resource.ParseQuantity(port)
+		ports = append(ports, corev1.ContainerPort{Name: "https", ContainerPort: int32(p.Value()), Protocol: corev1.ProtocolTCP})
 	}
 	if cr.Spec.GRPC.Disabled {
 		env = append(env, corev1.EnvVar{Name: "GRPC_DISABLED", Value: "true"})
@@ -682,6 +705,16 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 		replicas = 1
 	}
 
+	probe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{Path: "/health", Port: intstr.FromString("http")},
+		},
+	}
+	if cr.Spec.HTTPDisabled && cr.Spec.Service.HTTPSPort != 0 {
+		probe.HTTPGet.Port = intstr.FromString("https")
+		probe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+	}
+
 	ss.Spec = appsv1.StatefulSetSpec{
 		Selector: &metav1.LabelSelector{
 			MatchLabels: ls,
@@ -715,15 +748,11 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 							"--config=/config/config.yaml",
 							"--data-dir=/data",
 						},
-						Env:          env,
-						Ports:        ports,
-						VolumeMounts: volumeMounts,
-						Resources:    cr.Spec.Resources,
-						ReadinessProbe: &corev1.Probe{
-							ProbeHandler: corev1.ProbeHandler{
-								HTTPGet: &corev1.HTTPGetAction{Path: "/health", Port: intstr.FromString("http")},
-							},
-						},
+						Env:            env,
+						Ports:          ports,
+						VolumeMounts:   volumeMounts,
+						Resources:      cr.Spec.Resources,
+						ReadinessProbe: probe,
 					},
 				},
 				Volumes: volumes,
@@ -751,6 +780,9 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 	}
 
 	type Config struct {
+		ListenAddress        string                    `json:"listen_address,omitempty"`
+		HTTPSListenAddress   string                    `json:"https_listen_address,omitempty"`
+		HTTPDisabled         bool                      `json:"http_disabled,omitempty"`
 		DisableBuiltinAlerts bool                      `json:"disableBuiltinAlerts,omitempty"`
 		Projects             []corootv1.ProjectSpec    `json:"projects,omitempty"`
 		SSO                  *corootv1.SSOSpec         `json:"sso,omitempty"`
@@ -765,6 +797,14 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 		SSO:                  cr.Spec.SSO,
 		AI:                   cr.Spec.AI,
 		CorootCloud:          cr.Spec.CorootCloud,
+	}
+	if cr.Spec.HTTPDisabled {
+		cfg.HTTPDisabled = true
+	} else {
+		cfg.ListenAddress = ":8080"
+	}
+	if cr.Spec.Service.HTTPSPort != 0 {
+		cfg.HTTPSListenAddress = cmp.Or(cr.Spec.HTTPSListen, ":8443")
 	}
 	if cr.Spec.TLS != nil {
 		cfg.TLS = &TLS{

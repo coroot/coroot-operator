@@ -92,11 +92,23 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot) *appsv1.D
 		},
 	}
 
-	corootURL := fmt.Sprintf("http://%s-coroot.%s:%d", cr.Name, cr.Namespace, cr.Spec.Service.Port)
+	scheme := "http"
+	port := cr.Spec.Service.Port
+	if cr.Spec.TLS != nil || cr.Spec.HTTPDisabled {
+		scheme = "https"
+		port = cr.Spec.Service.HTTPSPort
+	}
+	corootURL := fmt.Sprintf("%s://%s-coroot.%s:%d", scheme, cr.Name, cr.Namespace, port)
 	var tlsSkipVerify bool
+	var caSecret *corev1.SecretKeySelector
 	if cr.Spec.AgentsOnly != nil && cr.Spec.AgentsOnly.CorootURL != "" {
 		corootURL = cr.Spec.AgentsOnly.CorootURL
 		tlsSkipVerify = cr.Spec.AgentsOnly.TLSSkipVerify
+		caSecret = cr.Spec.AgentsOnly.CASecret
+	}
+	if cr.Spec.ClusterAgent.TLS != nil {
+		tlsSkipVerify = cr.Spec.ClusterAgent.TLS.TLSSkipVerify
+		caSecret = cr.Spec.ClusterAgent.TLS.CASecret
 	}
 	scrapeInterval := cmp.Or(cr.Spec.MetricsRefreshInterval, corootv1.DefaultMetricRefreshInterval)
 	env := []corev1.EnvVar{
@@ -110,11 +122,39 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot) *appsv1.D
 	if tlsSkipVerify {
 		env = append(env, corev1.EnvVar{Name: "INSECURE_SKIP_VERIFY", Value: "true"})
 	}
+	if caSecret != nil {
+		env = append(env, corev1.EnvVar{Name: "CA_FILE", Value: "/etc/coroot-ca/ca.crt"})
+	}
 	for _, e := range cr.Spec.ClusterAgent.Env {
 		env = append(env, e)
 	}
 	image := r.getAppImage(cr, AppClusterAgent)
 	ksmImage := r.getAppImage(cr, AppKubeStateMetrics)
+
+	volumeMounts := []corev1.VolumeMount{
+		{Name: "tmp", MountPath: "/tmp"},
+	}
+	volumes := []corev1.Volume{
+		{
+			Name: "tmp",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+	if caSecret != nil {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: "ca", MountPath: "/etc/coroot-ca", ReadOnly: true})
+		volumes = append(volumes, corev1.Volume{
+			Name: "ca",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: caSecret.Name,
+					Items:      []corev1.KeyToPath{{Key: caSecret.Key, Path: "ca.crt"}},
+				},
+			},
+		})
+	}
+
 	d.Spec = appsv1.DeploymentSpec{
 		Selector: &metav1.LabelSelector{
 			MatchLabels: ls,
@@ -140,11 +180,9 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot) *appsv1.D
 							"--listen=127.0.0.1:10301",
 							"--metrics-wal-dir=/tmp",
 						},
-						Resources: cr.Spec.ClusterAgent.Resources,
-						VolumeMounts: []corev1.VolumeMount{
-							{Name: "tmp", MountPath: "/tmp"},
-						},
-						Env: env,
+						Resources:    cr.Spec.ClusterAgent.Resources,
+						VolumeMounts: volumeMounts,
+						Env:          env,
 					},
 					{
 						Image:           ksmImage.Name,
@@ -163,14 +201,7 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot) *appsv1.D
 						},
 					},
 				},
-				Volumes: []corev1.Volume{
-					{
-						Name: "tmp",
-						VolumeSource: corev1.VolumeSource{
-							EmptyDir: &corev1.EmptyDirVolumeSource{},
-						},
-					},
-				},
+				Volumes: volumes,
 			},
 		},
 	}

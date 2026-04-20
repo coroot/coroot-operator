@@ -34,6 +34,15 @@ type AgentsOnlySpec struct {
 	CorootURL string `json:"corootURL,omitempty"`
 	// Whether to skip verification of the Coroot server's TLS certificate.
 	TLSSkipVerify bool `json:"tlsSkipVerify,omitempty"`
+	// Secret containing the CA certificate to verify the Coroot server's certificate.
+	CASecret *corev1.SecretKeySelector `json:"caSecret,omitempty"`
+}
+
+type AgentTLSSpec struct {
+	// Secret containing the CA certificate to verify the Coroot server's certificate.
+	CASecret *corev1.SecretKeySelector `json:"caSecret,omitempty"`
+	// Whether to skip verification of the Coroot server's TLS certificate.
+	TLSSkipVerify bool `json:"tlsSkipVerify,omitempty"`
 }
 
 type NodeAgentSpec struct {
@@ -50,6 +59,8 @@ type NodeAgentSpec struct {
 	// Environment variables for the node-agent.
 	Env   []corev1.EnvVar `json:"env,omitempty"`
 	Image ImageSpec       `json:"image,omitempty"`
+	// TLS settings for connecting to Coroot.
+	TLS *AgentTLSSpec `json:"tls,omitempty"`
 
 	LogCollector LogCollectorSpec `json:"logCollector,omitempty"`
 	EbpfTracer   EbpfTracerSpec   `json:"ebpfTracer,omitempty"`
@@ -90,6 +101,8 @@ type ClusterAgentSpec struct {
 	// Environment variables for the cluster-agent.
 	Env   []corev1.EnvVar `json:"env,omitempty"`
 	Image ImageSpec       `json:"image,omitempty"`
+	// TLS settings for connecting to Coroot.
+	TLS *AgentTLSSpec `json:"tls,omitempty"`
 
 	KubeStateMetrics KubeStateMetricsSpec `json:"kubeStateMetrics,omitempty"`
 }
@@ -254,6 +267,10 @@ type ServiceSpec struct {
 	GRPCPort int32 `json:"grpcPort,omitempty"`
 	// gRPC nodePort (if type is NodePort).
 	GRPCNodePort int32 `json:"grpcNodePort,omitempty"`
+	// HTTPS port (optional).
+	HTTPSPort int32 `json:"httpsPort,omitempty"`
+	// HTTPS nodePort (if type is NodePort).
+	HTTPSNodePort int32 `json:"httpsNodePort,omitempty"`
 	// Annotations for the service.
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
@@ -273,6 +290,7 @@ type TLSSpec struct {
 }
 
 type CorootSpec struct {
+
 	// Specifies the metric resolution interval.
 	// +kubebuilder:validation:Pattern="^[0-9]+[sm]$"
 	MetricsRefreshInterval string `json:"metricsRefreshInterval,omitempty"`
@@ -292,6 +310,10 @@ type CorootSpec struct {
 	AuthAnonymousRole string `json:"authAnonymousRole,omitempty"`
 	// Initial admin password for bootstrapping.
 	AuthBootstrapAdminPassword string `json:"authBootstrapAdminPassword,omitempty"`
+	// Disable plain HTTP.
+	HTTPDisabled bool `json:"httpDisabled,omitempty"`
+	// HTTPS listen address (default: :8443).
+	HTTPSListen string `json:"httpsListen,omitempty"`
 	// Secret containing the initial admin password.
 	AuthBootstrapAdminPasswordSecret *corev1.SecretKeySelector `json:"authBootstrapAdminPasswordSecret,omitempty"`
 	// gRPC settings.
