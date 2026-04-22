@@ -71,7 +71,7 @@ $(LOCALBIN):
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 
 ## Tool Versions
-CONTROLLER_TOOLS_VERSION ?= v0.16.1
+CONTROLLER_TOOLS_VERSION ?= v0.20.1
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
