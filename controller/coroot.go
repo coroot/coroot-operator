@@ -42,7 +42,7 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 	if !cr.Spec.GRPC.Disabled && cr.Spec.Service.GRPCPort == 0 {
 		cr.Spec.Service.GRPCPort = 4317
 	}
-	if cr.Spec.TLS != nil && cr.Spec.Service.HTTPSPort == 0 {
+	if (cr.Spec.TLS != nil || cr.Spec.HTTPDisabled) && cr.Spec.Service.HTTPSPort == 0 {
 		cr.Spec.Service.HTTPSPort = 8443
 	}
 
@@ -335,14 +335,15 @@ func (r *CorootReconciler) corootService(cr *corootv1.Coroot) *corev1.Service {
 		},
 	}
 
-	ports := []corev1.ServicePort{
-		{
+	var ports []corev1.ServicePort
+	if !cr.Spec.HTTPDisabled {
+		ports = append(ports, corev1.ServicePort{
 			Name:       "http",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       cr.Spec.Service.Port,
 			TargetPort: intstr.FromString("http"),
 			NodePort:   cr.Spec.Service.NodePort,
-		},
+		})
 	}
 	if !cr.Spec.GRPC.Disabled {
 		ports = append(ports, corev1.ServicePort{
@@ -425,6 +426,10 @@ func (r *CorootReconciler) corootIngressV1(cr *corootv1.Coroot) *networkingv1.In
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
+	portName := "http"
+	if cr.Spec.HTTPDisabled {
+		portName = "https"
+	}
 	i.Spec = networkingv1.IngressSpec{
 		IngressClassName: cr.Spec.Ingress.ClassName,
 		Rules: []networkingv1.IngressRule{{
@@ -438,7 +443,7 @@ func (r *CorootReconciler) corootIngressV1(cr *corootv1.Coroot) *networkingv1.In
 							Service: &networkingv1.IngressServiceBackend{
 								Name: fmt.Sprintf("%s-coroot", cr.Name),
 								Port: networkingv1.ServiceBackendPort{
-									Name: "http",
+									Name: portName,
 								},
 							},
 						},
@@ -478,6 +483,10 @@ func (r *CorootReconciler) corootIngressV1Beta1(cr *corootv1.Coroot) *networking
 		path = "/" + path
 	}
 	pathType := networkingv1beta1.PathTypePrefix
+	portName := "http"
+	if cr.Spec.HTTPDisabled {
+		portName = "https"
+	}
 	i.Spec = networkingv1beta1.IngressSpec{
 		Rules: []networkingv1beta1.IngressRule{{
 			Host: cr.Spec.Ingress.Host,
@@ -488,7 +497,7 @@ func (r *CorootReconciler) corootIngressV1Beta1(cr *corootv1.Coroot) *networking
 						PathType: &pathType,
 						Backend: networkingv1beta1.IngressBackend{
 							ServiceName: fmt.Sprintf("%s-coroot", cr.Name),
-							ServicePort: intstr.FromString("http"),
+							ServicePort: intstr.FromString(portName),
 						},
 					}},
 				},
@@ -528,8 +537,9 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 
 	refreshInterval := cmp.Or(cr.Spec.MetricsRefreshInterval, corootv1.DefaultMetricRefreshInterval)
 
-	ports := []corev1.ContainerPort{
-		{Name: "http", ContainerPort: 8080, Protocol: corev1.ProtocolTCP},
+	var ports []corev1.ContainerPort
+	if !cr.Spec.HTTPDisabled {
+		ports = append(ports, corev1.ContainerPort{Name: "http", ContainerPort: 8080, Protocol: corev1.ProtocolTCP})
 	}
 	volumes := []corev1.Volume{
 		{
