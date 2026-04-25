@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 
 	corootv1 "github.io/coroot/operator/api/v1"
@@ -569,9 +570,9 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 	httpsListen := cmp.Or(cr.Spec.HTTPSListen, ":8443")
 	if cr.Spec.Service.HTTPSPort != 0 {
 		env = append(env, corev1.EnvVar{Name: "HTTPS_LISTEN", Value: httpsListen})
-		_, port, _ := strings.Cut(httpsListen, ":")
-		p, _ := resource.ParseQuantity(port)
-		ports = append(ports, corev1.ContainerPort{Name: "https", ContainerPort: int32(p.Value()), Protocol: corev1.ProtocolTCP})
+		_, portStr, _ := strings.Cut(httpsListen, ":")
+		port, _ := strconv.Atoi(portStr)
+		ports = append(ports, corev1.ContainerPort{Name: "https", ContainerPort: int32(port), Protocol: corev1.ProtocolTCP})
 	}
 	if cr.Spec.GRPC.Disabled {
 		env = append(env, corev1.EnvVar{Name: "GRPC_DISABLED", Value: "true"})
