@@ -34,8 +34,6 @@ type AgentsOnlySpec struct {
 	CorootURL string `json:"corootURL,omitempty"`
 	// Whether to skip verification of the Coroot server's TLS certificate.
 	TLSSkipVerify bool `json:"tlsSkipVerify,omitempty"`
-	// Secret containing the CA certificate to verify the Coroot server's certificate.
-	CASecret *corev1.SecretKeySelector `json:"caSecret,omitempty"`
 }
 
 type AgentTLSSpec struct {

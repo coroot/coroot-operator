@@ -869,27 +869,6 @@ spec:
                 agentsOnly:
                   description: Configures the operator to install only the node-agent and cluster-agent.
                   properties:
-                    caSecret:
-                      description: Secret containing the CA certificate to verify the Coroot server's certificate.
-                      properties:
-                        key:
-                          description: The key of the secret to select from.  Must be a valid secret key.
-                          type: string
-                        name:
-                          default: ""
-                          description: |-
-                            Name of the referent.
-                            This field is effectively required, but due to backwards compatibility is
-                            allowed to be empty. Instances of this type with an empty value here are
-                            almost certainly wrong.
-                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                          type: string
-                        optional:
-                          description: Specify whether the Secret or its key must be defined
-                          type: boolean
-                      required:
-                        - key
-                      type: object
                     corootURL:
                       description: URL of the Coroot instance to which agents send metrics, logs, traces, and profiles.
                       pattern: ^https?://.+$

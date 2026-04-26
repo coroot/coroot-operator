@@ -30,15 +30,12 @@ func (r *CorootReconciler) nodeAgentDaemonSet(cr *corootv1.Coroot) *appsv1.Daemo
 		port = cr.Spec.Service.HTTPSPort
 	}
 	corootURL := fmt.Sprintf("%s://%s-coroot.%s:%d", scheme, cr.Name, cr.Namespace, port)
-	var tlsSkipVerify bool
-	var caSecret *corev1.SecretKeySelector
 	if cr.Spec.AgentsOnly != nil && cr.Spec.AgentsOnly.CorootURL != "" {
 		corootURL = strings.TrimRight(cr.Spec.AgentsOnly.CorootURL, "/")
-		tlsSkipVerify = cr.Spec.AgentsOnly.TLSSkipVerify
-		caSecret = cr.Spec.AgentsOnly.CASecret
 	}
+	tlsSkipVerify := (cr.Spec.AgentsOnly != nil && cr.Spec.AgentsOnly.TLSSkipVerify) || (cr.Spec.NodeAgent.TLS != nil && cr.Spec.NodeAgent.TLS.TLSSkipVerify)
+	var caSecret *corev1.SecretKeySelector
 	if cr.Spec.NodeAgent.TLS != nil {
-		tlsSkipVerify = cr.Spec.NodeAgent.TLS.TLSSkipVerify
 		caSecret = cr.Spec.NodeAgent.TLS.CASecret
 	}
 	scrapeInterval := cmp.Or(cr.Spec.MetricsRefreshInterval, corootv1.DefaultMetricRefreshInterval)
