@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 
 	corootv1 "github.io/coroot/operator/api/v1"
@@ -41,6 +42,9 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 	}
 	if !cr.Spec.GRPC.Disabled && cr.Spec.Service.GRPCPort == 0 {
 		cr.Spec.Service.GRPCPort = 4317
+	}
+	if (cr.Spec.TLS != nil || cr.Spec.HTTPDisabled) && cr.Spec.Service.HTTPSPort == 0 {
+		cr.Spec.Service.HTTPSPort = 8443
 	}
 
 	if s3 := cr.Spec.Clickhouse.S3; s3 != nil {
@@ -332,14 +336,15 @@ func (r *CorootReconciler) corootService(cr *corootv1.Coroot) *corev1.Service {
 		},
 	}
 
-	ports := []corev1.ServicePort{
-		{
+	var ports []corev1.ServicePort
+	if !cr.Spec.HTTPDisabled {
+		ports = append(ports, corev1.ServicePort{
 			Name:       "http",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       cr.Spec.Service.Port,
 			TargetPort: intstr.FromString("http"),
 			NodePort:   cr.Spec.Service.NodePort,
-		},
+		})
 	}
 	if !cr.Spec.GRPC.Disabled {
 		ports = append(ports, corev1.ServicePort{
@@ -348,6 +353,15 @@ func (r *CorootReconciler) corootService(cr *corootv1.Coroot) *corev1.Service {
 			Port:       cr.Spec.Service.GRPCPort,
 			TargetPort: intstr.FromString("grpc"),
 			NodePort:   cr.Spec.Service.GRPCNodePort,
+		})
+	}
+	if cr.Spec.Service.HTTPSPort != 0 {
+		ports = append(ports, corev1.ServicePort{
+			Name:       "https",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       cr.Spec.Service.HTTPSPort,
+			TargetPort: intstr.FromString("https"),
+			NodePort:   cr.Spec.Service.HTTPSNodePort,
 		})
 	}
 
@@ -413,6 +427,10 @@ func (r *CorootReconciler) corootIngressV1(cr *corootv1.Coroot) *networkingv1.In
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
+	portName := "http"
+	if cr.Spec.HTTPDisabled {
+		portName = "https"
+	}
 	i.Spec = networkingv1.IngressSpec{
 		IngressClassName: cr.Spec.Ingress.ClassName,
 		Rules: []networkingv1.IngressRule{{
@@ -426,7 +444,7 @@ func (r *CorootReconciler) corootIngressV1(cr *corootv1.Coroot) *networkingv1.In
 							Service: &networkingv1.IngressServiceBackend{
 								Name: fmt.Sprintf("%s-coroot", cr.Name),
 								Port: networkingv1.ServiceBackendPort{
-									Name: "http",
+									Name: portName,
 								},
 							},
 						},
@@ -466,6 +484,10 @@ func (r *CorootReconciler) corootIngressV1Beta1(cr *corootv1.Coroot) *networking
 		path = "/" + path
 	}
 	pathType := networkingv1beta1.PathTypePrefix
+	portName := "http"
+	if cr.Spec.HTTPDisabled {
+		portName = "https"
+	}
 	i.Spec = networkingv1beta1.IngressSpec{
 		Rules: []networkingv1beta1.IngressRule{{
 			Host: cr.Spec.Ingress.Host,
@@ -476,7 +498,7 @@ func (r *CorootReconciler) corootIngressV1Beta1(cr *corootv1.Coroot) *networking
 						PathType: &pathType,
 						Backend: networkingv1beta1.IngressBackend{
 							ServiceName: fmt.Sprintf("%s-coroot", cr.Name),
-							ServicePort: intstr.FromString("http"),
+							ServicePort: intstr.FromString(portName),
 						},
 					}},
 				},
@@ -516,8 +538,9 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 
 	refreshInterval := cmp.Or(cr.Spec.MetricsRefreshInterval, corootv1.DefaultMetricRefreshInterval)
 
-	ports := []corev1.ContainerPort{
-		{Name: "http", ContainerPort: 8080, Protocol: corev1.ProtocolTCP},
+	var ports []corev1.ContainerPort
+	if !cr.Spec.HTTPDisabled {
+		ports = append(ports, corev1.ContainerPort{Name: "http", ContainerPort: 8080, Protocol: corev1.ProtocolTCP})
 	}
 	volumes := []corev1.Volume{
 		{
@@ -536,9 +559,20 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 		{Name: "data", MountPath: "/data"},
 	}
 	env := []corev1.EnvVar{
-		{Name: "LISTEN", Value: ":8080"},
 		{Name: "GLOBAL_REFRESH_INTERVAL", Value: refreshInterval},
 		{Name: "INSTALLATION_TYPE", Value: "k8s-operator"},
+	}
+	if cr.Spec.HTTPDisabled {
+		env = append(env, corev1.EnvVar{Name: "HTTP_DISABLED", Value: "true"})
+	} else {
+		env = append(env, corev1.EnvVar{Name: "LISTEN", Value: ":8080"})
+	}
+	httpsListen := cmp.Or(cr.Spec.HTTPSListen, ":8443")
+	if cr.Spec.Service.HTTPSPort != 0 {
+		env = append(env, corev1.EnvVar{Name: "HTTPS_LISTEN", Value: httpsListen})
+		_, portStr, _ := strings.Cut(httpsListen, ":")
+		port, _ := strconv.Atoi(portStr)
+		ports = append(ports, corev1.ContainerPort{Name: "https", ContainerPort: int32(port), Protocol: corev1.ProtocolTCP})
 	}
 	if cr.Spec.GRPC.Disabled {
 		env = append(env, corev1.EnvVar{Name: "GRPC_DISABLED", Value: "true"})
@@ -682,6 +716,16 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 		replicas = 1
 	}
 
+	probe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{Path: "/health", Port: intstr.FromString("http")},
+		},
+	}
+	if cr.Spec.HTTPDisabled && cr.Spec.Service.HTTPSPort != 0 {
+		probe.HTTPGet.Port = intstr.FromString("https")
+		probe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+	}
+
 	ss.Spec = appsv1.StatefulSetSpec{
 		Selector: &metav1.LabelSelector{
 			MatchLabels: ls,
@@ -715,15 +759,11 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 							"--config=/config/config.yaml",
 							"--data-dir=/data",
 						},
-						Env:          env,
-						Ports:        ports,
-						VolumeMounts: volumeMounts,
-						Resources:    cr.Spec.Resources,
-						ReadinessProbe: &corev1.Probe{
-							ProbeHandler: corev1.ProbeHandler{
-								HTTPGet: &corev1.HTTPGetAction{Path: "/health", Port: intstr.FromString("http")},
-							},
-						},
+						Env:            env,
+						Ports:          ports,
+						VolumeMounts:   volumeMounts,
+						Resources:      cr.Spec.Resources,
+						ReadinessProbe: probe,
 					},
 				},
 				Volumes: volumes,
@@ -751,6 +791,9 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 	}
 
 	type Config struct {
+		ListenAddress        string                    `json:"listen_address,omitempty"`
+		HTTPSListenAddress   string                    `json:"https_listen_address,omitempty"`
+		HTTPDisabled         bool                      `json:"http_disabled,omitempty"`
 		DisableBuiltinAlerts bool                      `json:"disableBuiltinAlerts,omitempty"`
 		Projects             []corootv1.ProjectSpec    `json:"projects,omitempty"`
 		SSO                  *corootv1.SSOSpec         `json:"sso,omitempty"`
@@ -765,6 +808,14 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 		SSO:                  cr.Spec.SSO,
 		AI:                   cr.Spec.AI,
 		CorootCloud:          cr.Spec.CorootCloud,
+	}
+	if cr.Spec.HTTPDisabled {
+		cfg.HTTPDisabled = true
+	} else {
+		cfg.ListenAddress = ":8080"
+	}
+	if cr.Spec.Service.HTTPSPort != 0 {
+		cfg.HTTPSListenAddress = cmp.Or(cr.Spec.HTTPSListen, ":8443")
 	}
 	if cr.Spec.TLS != nil {
 		cfg.TLS = &TLS{
