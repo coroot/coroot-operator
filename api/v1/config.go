@@ -169,16 +169,29 @@ type NotificationIntegrationSlackSpec struct {
 }
 
 type NotificationIntegrationTeamsSpec struct {
-	// MS Teams Webhook URL.
+	// MS Teams Webhook URL (deprecated: use `channels`; treated as the "default" channel; cannot be used together with `channels`).
 	WebhookURL string `json:"webhookURL,omitempty"`
 	// Secret containing the Webhook URL.
 	WebhookURLSecret *corev1.SecretKeySelector `json:"webhookURLSecret,omitempty"`
+	// MS Teams channels (each channel is a separate webhook). Notifications are routed to a channel by name in the application category settings.
+	Channels []NotificationIntegrationTeamsChannelSpec `json:"channels,omitempty"`
+	// The channel used unless an application category specifies another one (default: "default").
+	DefaultChannel string `json:"defaultChannel,omitempty"`
 	// Notify of incidents (SLO violation).
 	Incidents bool `json:"incidents,omitempty"`
 	// Notify of deployments.
 	Deployments bool `json:"deployments,omitempty"`
 	// Notify of alerts.
 	Alerts *bool `json:"alerts,omitempty"`
+}
+
+type NotificationIntegrationTeamsChannelSpec struct {
+	// Channel name (required).
+	Name string `json:"name"`
+	// MS Teams Webhook URL for this channel.
+	WebhookURL string `json:"webhookURL,omitempty"`
+	// Secret containing the Webhook URL.
+	WebhookURLSecret *corev1.SecretKeySelector `json:"webhookURLSecret,omitempty"`
 }
 
 type NotificationIntegrationPagerdutySpec struct {
@@ -281,6 +294,8 @@ type ApplicationCategoryNotificationSettingsSlackSpec struct {
 
 type ApplicationCategoryNotificationSettingsTeamsSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
+	// MS Teams channel name (the integration's default channel is used if empty).
+	Channel string `json:"channel,omitempty"`
 }
 
 type ApplicationCategoryNotificationSettingsPagerdutySpec struct {

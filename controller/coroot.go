@@ -151,8 +151,45 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 					}
 					teams.WebhookURLSecret = nil
 				}
-				if teams.WebhookURL == "" {
+				var channels []corootv1.NotificationIntegrationTeamsChannelSpec
+				for _, ch := range teams.Channels {
+					if ch.WebhookURLSecret != nil {
+						if _, err = r.GetSecret(ctx, cr, ch.WebhookURLSecret); err != nil {
+							logErr("Failed to get MS Teams Webhook URL for channel %s: %s.", ch.Name, err.Error())
+						} else {
+							ch.WebhookURL = configEnvs.Add(ch.WebhookURLSecret)
+						}
+						ch.WebhookURLSecret = nil
+					}
+					if ch.Name == "" || ch.WebhookURL == "" {
+						logErr("MS Teams channel requires name and webhookURL.")
+						continue
+					}
+					channels = append(channels, ch)
+				}
+				teams.Channels = channels
+				if teams.WebhookURL != "" && len(teams.Channels) > 0 {
+					logErr("MS Teams webhookURL is deprecated and cannot be used together with channels; using channels.")
+					teams.WebhookURL = ""
+				}
+				if teams.WebhookURL == "" && len(teams.Channels) == 0 {
 					p.NotificationIntegrations.Teams = nil
+				} else if len(teams.Channels) > 0 {
+					defaultChannel := teams.DefaultChannel
+					if defaultChannel == "" {
+						defaultChannel = "default"
+					}
+					found := false
+					for _, ch := range teams.Channels {
+						if ch.Name == defaultChannel {
+							found = true
+							break
+						}
+					}
+					if !found {
+						logErr("MS Teams defaultChannel must be one of the configured channels.")
+						p.NotificationIntegrations.Teams = nil
+					}
 				}
 			}
 			if pagerduty := p.NotificationIntegrations.Pagerduty; pagerduty != nil {
