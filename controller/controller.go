@@ -136,6 +136,7 @@ func detectIngressAPIVersion(mgr ctrl.Manager) string {
 // +kubebuilder:rbac:groups=argoproj.io,resources=applications;applicationsets;appprojects,verbs=get;list;watch
 // +kubebuilder:rbac:groups=postgresql.cnpg.io,resources=clusters;backups;scheduledbackups,verbs=get;list;watch
 // +kubebuilder:rbac:groups=pgv2.percona.com,resources=perconapgclusters;perconapgbackups,verbs=get;list;watch
+// +kubebuilder:rbac:groups=psmdb.percona.com,resources=perconaservermongodbs;perconaservermongodbbackups,verbs=get;list;watch
 
 func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := ctrl.Log.WithValues("namespace", req.Namespace, "name", req.Name)

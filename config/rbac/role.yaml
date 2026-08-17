@@ -144,6 +144,15 @@ rules:
   - list
   - watch
 - apiGroups:
+  - psmdb.percona.com
+  resources:
+  - perconaservermongodbbackups
+  - perconaservermongodbs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
