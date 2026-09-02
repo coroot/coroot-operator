@@ -133,6 +133,7 @@ func (r *CorootReconciler) clickhouseKeeperStatefulSet(cr *corootv1.Coroot) *app
 						Args:            []string{clickhouseKeeperConfigCmd("/config/config.xml", cr, int(replicas))},
 						VolumeMounts:    []corev1.VolumeMount{{Name: "config", MountPath: "/config"}},
 						Resources:       cr.Spec.Clickhouse.Keeper.Resources,
+						SecurityContext: cr.Spec.Clickhouse.Keeper.SecurityContext,
 					},
 				},
 				Containers: []corev1.Container{
@@ -153,7 +154,8 @@ func (r *CorootReconciler) clickhouseKeeperStatefulSet(cr *corootv1.Coroot) *app
 							{Name: "config", MountPath: "/config"},
 							{Name: "data", MountPath: "/var/lib/clickhouse-keeper"},
 						},
-						Resources: cr.Spec.Clickhouse.Keeper.Resources,
+						Resources:       cr.Spec.Clickhouse.Keeper.Resources,
+						SecurityContext: cr.Spec.Clickhouse.Keeper.SecurityContext,
 						//ReadinessProbe: &corev1.Probe{
 						//	ProbeHandler: corev1.ProbeHandler{
 						//		//HTTPGet: &corev1.HTTPGetAction{Path: "/ready", Port: intstr.FromString("control")},

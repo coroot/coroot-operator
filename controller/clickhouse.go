@@ -189,6 +189,7 @@ func (r *CorootReconciler) clickhouseStatefulSets(cr *corootv1.Coroot) []*appsv1
 							Args:            []string{clickhouseConfigCmd("/config/config.xml", cr, shards, int(replicas), clickhouseKeeperReplicas(cr))},
 							VolumeMounts:    []corev1.VolumeMount{{Name: "config", MountPath: "/config"}},
 							Resources:       cr.Spec.Clickhouse.Resources,
+							SecurityContext: cr.Spec.Clickhouse.SecurityContext,
 						},
 					},
 					Containers: []corev1.Container{
@@ -224,6 +225,7 @@ func (r *CorootReconciler) clickhouseStatefulSets(cr *corootv1.Coroot) []*appsv1
 								},
 								TimeoutSeconds: 10,
 							},
+							SecurityContext: cr.Spec.Clickhouse.SecurityContext,
 						},
 					},
 					Volumes: []corev1.Volume{

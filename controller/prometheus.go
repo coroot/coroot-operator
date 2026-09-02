@@ -116,6 +116,7 @@ func (r *CorootReconciler) prometheusDeployment(cr *corootv1.Coroot) *appsv1.Dep
 						Args:            []string{prometheusConfigCmd("/config/prometheus.yml", cr)},
 						VolumeMounts:    []corev1.VolumeMount{{Name: "config", MountPath: "/config"}},
 						Resources:       cr.Spec.Prometheus.Resources,
+						SecurityContext: cr.Spec.Prometheus.SecurityContext,
 					},
 				},
 				Containers: []corev1.Container{
@@ -147,6 +148,7 @@ func (r *CorootReconciler) prometheusDeployment(cr *corootv1.Coroot) *appsv1.Dep
 							},
 							TimeoutSeconds: 10,
 						},
+						SecurityContext: cr.Spec.Prometheus.SecurityContext,
 					},
 				},
 				Volumes: []corev1.Volume{
