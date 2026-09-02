@@ -5763,6 +5763,11 @@ spec:
                 description: Specifies the metric resolution interval.
                 pattern: ^[0-9]+[sm]$
                 type: string
+              metricsTTL:
+                description: Metrics retention time when metrics are stored in ClickHouse
+                  (e.g. 4h, 3d, 2w, 1y; default 7d).
+                pattern: ^[0-9]+[mhdwy]$
+                type: string
               nodeAgent:
                 properties:
                   affinity:
