@@ -648,6 +648,9 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 	if cr.Spec.CacheTTL != "" {
 		env = append(env, corev1.EnvVar{Name: "CACHE_TTL", Value: cr.Spec.CacheTTL})
 	}
+	if cr.Spec.MetricsTTL != "" {
+		env = append(env, corev1.EnvVar{Name: "METRICS_TTL", Value: cr.Spec.MetricsTTL})
+	}
 	if cr.Spec.TracesTTL != "" {
 		env = append(env, corev1.EnvVar{Name: "TRACES_TTL", Value: cr.Spec.TracesTTL})
 	}

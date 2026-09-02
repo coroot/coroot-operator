@@ -303,6 +303,9 @@ type CorootSpec struct {
 	// Metric cache retention time (e.g. 4h, 3d, 2w, 1y; default 30d).
 	// +kubebuilder:validation:Pattern="^[0-9]+[mhdwy]$"
 	CacheTTL string `json:"cacheTTL,omitempty"`
+	// Metrics retention time when metrics are stored in ClickHouse (e.g. 4h, 3d, 2w, 1y; default 7d).
+	// +kubebuilder:validation:Pattern="^[0-9]+[mhdwy]$"
+	MetricsTTL string `json:"metricsTTL,omitempty"`
 	// Traces retention time (e.g. 4h, 3d, 2w, 1y; default 7d).
 	// +kubebuilder:validation:Pattern="^[0-9]+[mhdwy]$"
 	TracesTTL string `json:"tracesTTL,omitempty"`
