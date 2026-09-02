@@ -97,6 +97,11 @@ func (r *CorootReconciler) clusterAgentClusterRole(cr *corootv1.Coroot) *rbacv1.
 				Resources: []string{"perconaservermongodbs", "perconaservermongodbbackups"},
 				Verbs:     verbs,
 			},
+			{
+				APIGroups: []string{"pxc.percona.com"},
+				Resources: []string{"perconaxtradbclusters", "perconaxtradbclusterbackups"},
+				Verbs:     verbs,
+			},
 		},
 	}
 	return role
