@@ -540,6 +540,11 @@ func (in *ClickhouseKeeperSpec) DeepCopyInto(out *ClickhouseKeeperSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(corev1.SecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
 	in.Image.DeepCopyInto(&out.Image)
 }
 
@@ -605,6 +610,11 @@ func (in *ClickhouseSpec) DeepCopyInto(out *ClickhouseSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(corev1.SecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
 	in.Image.DeepCopyInto(&out.Image)
 	in.Keeper.DeepCopyInto(&out.Keeper)
 	if in.S3 != nil {
@@ -653,6 +663,11 @@ func (in *ClusterAgentSpec) DeepCopyInto(out *ClusterAgentSpec) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(corev1.SecurityContext)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
@@ -860,6 +875,11 @@ func (in *CorootSpec) DeepCopyInto(out *CorootSpec) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(corev1.SecurityContext)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.ApiKeySecret != nil {
 		in, out := &in.ApiKeySecret, &out.ApiKeySecret
@@ -1723,6 +1743,11 @@ func (in *PrometheusSpec) DeepCopyInto(out *PrometheusSpec) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(corev1.SecurityContext)
+		(*in).DeepCopyInto(*out)
 	}
 	in.Image.DeepCopyInto(&out.Image)
 }

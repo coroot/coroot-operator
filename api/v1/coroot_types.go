@@ -96,6 +96,8 @@ type ClusterAgentSpec struct {
 	Tolerations  []corev1.Toleration         `json:"tolerations,omitempty"`
 	// Annotations for cluster-agent pods.
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
+	// Container-level security context for cluster-agent containers.
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 	// Environment variables for the cluster-agent.
 	Env   []corev1.EnvVar `json:"env,omitempty"`
 	Image ImageSpec       `json:"image,omitempty"`
@@ -118,7 +120,9 @@ type PrometheusSpec struct {
 	Tolerations  []corev1.Toleration         `json:"tolerations,omitempty"`
 	// Annotations for prometheus pods.
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
-	Image          ImageSpec         `json:"image,omitempty"`
+	// Container-level security context for prometheus containers.
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+	Image           ImageSpec               `json:"image,omitempty"`
 	// Metrics retention time (e.g. 4h, 3d, 2w, 1y; default 2d).
 	// +kubebuilder:validation:Pattern="^[0-9]+[mhdwy]$"
 	Retention string `json:"retention,omitempty"`
@@ -155,7 +159,9 @@ type ClickhouseSpec struct {
 	Tolerations []corev1.Toleration         `json:"tolerations,omitempty"`
 	// Annotations for clickhouse pods.
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
-	Image          ImageSpec         `json:"image,omitempty"`
+	// Container-level security context for clickhouse containers.
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+	Image           ImageSpec               `json:"image,omitempty"`
 	// Log level (fatal, critical, error, warning, notice, information, debug, trace, test, or none; default: warning).
 	// +kubebuilder:validation:Enum="none";"fatal";"critical";"error";"warning";"notice";"information";"debug";"trace";"test"
 	LogLevel string `json:"logLevel,omitempty"`
@@ -202,7 +208,9 @@ type ClickhouseKeeperSpec struct {
 	Tolerations []corev1.Toleration         `json:"tolerations,omitempty"`
 	// Annotations for clickhouse-keeper pods.
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
-	Image          ImageSpec         `json:"image,omitempty"`
+	// Container-level security context for clickhouse-keeper containers.
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+	Image           ImageSpec               `json:"image,omitempty"`
 	// Log level (fatal, critical, error, warning, notice, information, debug, trace, test, or none; default: warning).
 	// +kubebuilder:validation:Enum="none";"fatal";"critical";"error";"warning";"notice";"information";"debug";"trace";"test"
 	LogLevel string `json:"logLevel,omitempty"`
@@ -345,6 +353,8 @@ type CorootSpec struct {
 	Tolerations []corev1.Toleration         `json:"tolerations,omitempty"`
 	// Annotations for Coroot pods.
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
+	// Container-level security context for Coroot containers.
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
 	// The API key used by agents when sending telemetry to Coroot.
 	ApiKey string `json:"apiKey,omitempty"`
