@@ -103,6 +103,10 @@ type ClusterAgentSpec struct {
 	Image ImageSpec       `json:"image,omitempty"`
 	// TLS settings for connecting to Coroot.
 	TLS *AgentTLSSpec `json:"tls,omitempty"`
+	// AWS integration settings (discovery of RDS and ElastiCache instances). Overrides the settings made in the Coroot UI.
+	AWS *ClusterAgentAWSSpec `json:"aws,omitempty"`
+	// Databases to collect metrics from, in addition to those configured in the Coroot UI or discovered through pod annotations.
+	Databases []ClusterAgentDatabaseSpec `json:"databases,omitempty"`
 
 	KubeStateMetrics KubeStateMetricsSpec `json:"kubeStateMetrics,omitempty"`
 }

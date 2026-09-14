@@ -107,7 +107,7 @@ func (r *CorootReconciler) clusterAgentClusterRole(cr *corootv1.Coroot) *rbacv1.
 	return role
 }
 
-func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot) *appsv1.Deployment {
+func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot, configEnvs ConfigEnvs, configHash string) *appsv1.Deployment {
 	ls := Labels(cr, "coroot-cluster-agent")
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -147,6 +147,10 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot) *appsv1.D
 	if caSecret != nil {
 		env = append(env, corev1.EnvVar{Name: "CA_FILE", Value: "/etc/coroot-ca/ca.crt"})
 	}
+	if configHash != "" {
+		env = append(env, corev1.EnvVar{Name: "CONFIG_FILE", Value: clusterAgentConfigPath})
+		env = append(env, configEnvs.List()...)
+	}
 	for _, e := range cr.Spec.ClusterAgent.Env {
 		env = append(env, e)
 	}
@@ -161,6 +165,22 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot) *appsv1.D
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
+	}
+	podAnnotations := cr.Spec.ClusterAgent.PodAnnotations
+	if configHash != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: "config", MountPath: "/config", ReadOnly: true})
+		volumes = append(volumes, corev1.Volume{
+			Name: "config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: cr.Name + "-cluster-agent"},
+				},
+			},
+		})
+		if podAnnotations == nil {
+			podAnnotations = map[string]string{}
+		}
+		podAnnotations["checksum/config"] = configHash
 	}
 	if caSecret != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: "ca", MountPath: "/etc/coroot-ca", ReadOnly: true})
@@ -182,7 +202,7 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot) *appsv1.D
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels:      ls,
-				Annotations: cr.Spec.ClusterAgent.PodAnnotations,
+				Annotations: podAnnotations,
 			},
 			Spec: corev1.PodSpec{
 				ServiceAccountName: cr.Name + "-cluster-agent",
