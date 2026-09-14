@@ -184,7 +184,12 @@ func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	r.CreateOrUpdateServiceAccount(ctx, cr, "cluster-agent", sccNonroot)
 	r.CreateOrUpdateClusterRole(ctx, cr, r.clusterAgentClusterRole(cr))
 	r.CreateOrUpdateClusterRoleBinding(ctx, cr, r.clusterAgentClusterRoleBinding(cr))
-	r.CreateOrUpdateDeployment(ctx, cr, r.clusterAgentDeployment(cr))
+	clusterAgentConfigEnvs := ConfigEnvs{}
+	clusterAgentConfigMap, clusterAgentConfigHash := r.clusterAgentConfigMap(ctx, cr, clusterAgentConfigEnvs)
+	if clusterAgentConfigMap != nil {
+		r.CreateOrUpdateConfigMap(ctx, cr, clusterAgentConfigMap)
+	}
+	r.CreateOrUpdateDeployment(ctx, cr, r.clusterAgentDeployment(cr, clusterAgentConfigEnvs, clusterAgentConfigHash))
 
 	if cr.Spec.AgentsOnly != nil {
 		// TODO: delete
