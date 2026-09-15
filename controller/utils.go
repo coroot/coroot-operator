@@ -131,3 +131,22 @@ func (ce ConfigEnvs) List() []corev1.EnvVar {
 	sort.Slice(envs, func(i, j int) bool { return envs[i].Name < envs[j].Name })
 	return envs
 }
+
+func mergeEnvVars(defaults []corev1.EnvVar, overrides []corev1.EnvVar) []corev1.EnvVar {
+	res := make([]corev1.EnvVar, 0, len(defaults)+len(overrides))
+	res = append(res, defaults...)
+	for _, o := range overrides {
+		replaced := false
+		for i := range res {
+			if res[i].Name == o.Name {
+				res[i] = o
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			res = append(res, o)
+		}
+	}
+	return res
+}
