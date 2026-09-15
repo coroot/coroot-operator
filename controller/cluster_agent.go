@@ -151,9 +151,7 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot, configEnv
 		env = append(env, corev1.EnvVar{Name: "CONFIG_FILE", Value: clusterAgentConfigPath})
 		env = append(env, configEnvs.List()...)
 	}
-	for _, e := range cr.Spec.ClusterAgent.Env {
-		env = append(env, e)
-	}
+	env = mergeEnvVars(env, cr.Spec.ClusterAgent.Env)
 	image := r.getAppImage(cr, AppClusterAgent)
 	volumeMounts := []corev1.VolumeMount{
 		{Name: "tmp", MountPath: "/tmp"},

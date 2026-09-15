@@ -71,9 +71,7 @@ func (r *CorootReconciler) nodeAgentDaemonSet(cr *corootv1.Coroot) *appsv1.Daemo
 		env = append(env, corev1.EnvVar{Name: "TRACK_PUBLIC_NETWORK", Value: strings.Join(v, "\n")})
 	}
 
-	for _, e := range cr.Spec.NodeAgent.Env {
-		env = append(env, e)
-	}
+	env = mergeEnvVars(env, cr.Spec.NodeAgent.Env)
 
 	resources := cr.Spec.NodeAgent.Resources
 	if resources.Requests == nil {

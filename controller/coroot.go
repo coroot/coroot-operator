@@ -741,9 +741,7 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 
 	env = append(env, configEnvs.List()...)
 
-	for _, e := range cr.Spec.Env {
-		env = append(env, e)
-	}
+	env = mergeEnvVars(env, cr.Spec.Env)
 
 	podAnnotations := cr.Spec.PodAnnotations
 	if podAnnotations == nil {
