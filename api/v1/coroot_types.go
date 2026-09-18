@@ -105,6 +105,10 @@ type ClusterAgentSpec struct {
 	TLS *AgentTLSSpec `json:"tls,omitempty"`
 	// AWS integration settings (discovery of RDS and ElastiCache instances). Overrides the settings made in the Coroot UI.
 	AWS *ClusterAgentAWSSpec `json:"aws,omitempty"`
+	// GCP integration settings (discovery of Cloud SQL and Memorystore instances).
+	GCP *ClusterAgentGCPSpec `json:"gcp,omitempty"`
+	// OCI integration: discovery of MySQL HeatWave and PostgreSQL DB systems and OCI Cache clusters.
+	OCI *ClusterAgentOCISpec `json:"oci,omitempty"`
 	// Databases to collect metrics from, in addition to those configured in the Coroot UI or discovered through pod annotations.
 	Databases []ClusterAgentDatabaseSpec `json:"databases,omitempty"`
 

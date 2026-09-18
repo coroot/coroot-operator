@@ -16,8 +16,37 @@ type ClusterAgentAWSSpec struct {
 	ElasticacheTagFilters map[string]string `json:"elasticacheTagFilters,omitempty"`
 }
 
+// ClusterAgentGCPSpec configures the GCP integration of the cluster-agent (discovery of Cloud SQL and Memorystore instances).
+type ClusterAgentGCPSpec struct {
+	// GCP project to discover instances in. Defaults to the project of the GKE cluster.
+	ProjectId string `json:"projectId,omitempty"`
+	// Region to discover instances in. Defaults to the region the cluster runs in; "all" scans every region of the project.
+	Region string `json:"region,omitempty"`
+	// Secret with a service account key (key: credentials.json).
+	// Leave empty to use GKE Workload Identity or the service account of the node.
+	CredentialsSecret *corev1.SecretKeySelector `json:"credentialsSecret,omitempty"`
+	// Discover only Cloud SQL instances whose labels match (glob patterns are supported in values).
+	CloudSQLLabelFilters map[string]string `json:"cloudsqlLabelFilters,omitempty"`
+	// Discover only Memorystore instances whose labels match (glob patterns are supported in values).
+	MemorystoreLabelFilters map[string]string `json:"memorystoreLabelFilters,omitempty"`
+}
+
+// ClusterAgentOCISpec configures the OCI integration of the cluster-agent (discovery of MySQL HeatWave and PostgreSQL DB systems and OCI Cache clusters).
+type ClusterAgentOCISpec struct {
+	// OCIDs of the compartments to discover instances in. Defaults to the compartment of the cluster when OKE Workload Identity is used.
+	CompartmentIds []string `json:"compartmentIds,omitempty"`
+	// Region to discover instances in. Defaults to the region the cluster runs in.
+	Region string `json:"region,omitempty"`
+	// Secret with an API key (keys: tenancy_id, user_id, fingerprint, private_key); leave unset to use OKE Workload Identity or the instance principal of the nodes.
+	ApiKeySecret *corev1.LocalObjectReference `json:"apiKeySecret,omitempty"`
+	// Discover only DB systems whose freeform tags match (glob patterns are supported in values).
+	DBTagFilters map[string]string `json:"dbTagFilters,omitempty"`
+	// Discover only OCI Cache clusters whose freeform tags match (glob patterns are supported in values).
+	CacheTagFilters map[string]string `json:"cacheTagFilters,omitempty"`
+}
+
 // ClusterAgentDatabaseSpec is a database the cluster-agent collects metrics from.
-// Exactly one of host, rds or elasticache must be set.
+// Exactly one of host, rds, elasticache, cloudsql, memorystore, ocidb or ocicache must be set.
 type ClusterAgentDatabaseSpec struct {
 	// Database type.
 	// +kubebuilder:validation:Enum=postgres;mysql;redis;memcached;mongodb
@@ -30,6 +59,14 @@ type ClusterAgentDatabaseSpec struct {
 	RDS string `json:"rds,omitempty"`
 	// Id of an ElastiCache cluster discovered by the AWS integration; every node is monitored.
 	Elasticache string `json:"elasticache,omitempty"`
+	// Name of a Cloud SQL instance discovered by the GCP integration.
+	CloudSQL string `json:"cloudsql,omitempty"`
+	// Name of a Memorystore instance discovered by the GCP integration.
+	Memorystore string `json:"memorystore,omitempty"`
+	// Display name of a MySQL HeatWave or PostgreSQL DB system discovered by the OCI integration.
+	OCIDB string `json:"ocidb,omitempty"`
+	// Display name of an OCI Cache cluster discovered by the OCI integration.
+	OCICache string `json:"ocicache,omitempty"`
 	// Credentials.
 	Credentials *ClusterAgentDatabaseCredentials `json:"credentials,omitempty"`
 	// Type-specific parameters, e.g. sslmode: require for Postgres.

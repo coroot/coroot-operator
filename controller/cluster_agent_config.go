@@ -16,7 +16,7 @@ const clusterAgentConfigPath = "/config/config.yaml"
 
 func (r *CorootReconciler) clusterAgentConfigMap(ctx context.Context, cr *corootv1.Coroot, configEnvs ConfigEnvs) (*corev1.ConfigMap, string) {
 	spec := cr.Spec.ClusterAgent
-	if spec.AWS == nil && len(spec.Databases) == 0 {
+	if spec.AWS == nil && spec.GCP == nil && spec.OCI == nil && len(spec.Databases) == 0 {
 		return nil, ""
 	}
 	logger := log.FromContext(ctx)
@@ -31,6 +31,10 @@ func (r *CorootReconciler) clusterAgentConfigMap(ctx context.Context, cr *coroot
 		Port        string            `json:"port,omitempty"`
 		RDS         string            `json:"rds,omitempty"`
 		Elasticache string            `json:"elasticache,omitempty"`
+		CloudSQL    string            `json:"cloudsql,omitempty"`
+		Memorystore string            `json:"memorystore,omitempty"`
+		OCIDB       string            `json:"ocidb,omitempty"`
+		OCICache    string            `json:"ocicache,omitempty"`
 		Credentials *credentials      `json:"credentials,omitempty"`
 		Params      map[string]string `json:"params,omitempty"`
 	}
@@ -41,8 +45,28 @@ func (r *CorootReconciler) clusterAgentConfigMap(ctx context.Context, cr *coroot
 		RDSTagFilters         map[string]string `json:"rdsTagFilters,omitempty"`
 		ElasticacheTagFilters map[string]string `json:"elasticacheTagFilters,omitempty"`
 	}
+	type gcp struct {
+		ProjectID               string            `json:"projectId,omitempty"`
+		Region                  string            `json:"region,omitempty"`
+		CredentialsJSON         string            `json:"credentialsJson,omitempty"`
+		CloudSQLLabelFilters    map[string]string `json:"cloudsqlLabelFilters,omitempty"`
+		MemorystoreLabelFilters map[string]string `json:"memorystoreLabelFilters,omitempty"`
+	}
+
+	type oci struct {
+		CompartmentIDs  []string          `json:"compartmentIds,omitempty"`
+		Region          string            `json:"region,omitempty"`
+		TenancyID       string            `json:"tenancyId,omitempty"`
+		UserID          string            `json:"userId,omitempty"`
+		Fingerprint     string            `json:"fingerprint,omitempty"`
+		PrivateKey      string            `json:"privateKey,omitempty"`
+		DBTagFilters    map[string]string `json:"dbTagFilters,omitempty"`
+		CacheTagFilters map[string]string `json:"cacheTagFilters,omitempty"`
+	}
 	type config struct {
 		AWS       *aws       `json:"aws,omitempty"`
+		GCP       *gcp       `json:"gcp,omitempty"`
+		OCI       *oci       `json:"oci,omitempty"`
 		Databases []database `json:"databases,omitempty"`
 	}
 
@@ -68,8 +92,37 @@ func (r *CorootReconciler) clusterAgentConfigMap(ctx context.Context, cr *coroot
 			cfg.AWS.SecretAccessKey = secretRef(&corev1.SecretKeySelector{LocalObjectReference: *a.AccessKeySecret, Key: "secret_access_key"})
 		}
 	}
+	if g := spec.GCP; g != nil {
+		cfg.GCP = &gcp{
+			ProjectID:               g.ProjectId,
+			Region:                  g.Region,
+			CloudSQLLabelFilters:    g.CloudSQLLabelFilters,
+			MemorystoreLabelFilters: g.MemorystoreLabelFilters,
+		}
+		if g.CredentialsSecret != nil {
+			cfg.GCP.CredentialsJSON = secretRef(g.CredentialsSecret)
+		}
+	}
+	if o := spec.OCI; o != nil {
+		cfg.OCI = &oci{
+			CompartmentIDs:  o.CompartmentIds,
+			Region:          o.Region,
+			DBTagFilters:    o.DBTagFilters,
+			CacheTagFilters: o.CacheTagFilters,
+		}
+		if o.ApiKeySecret != nil {
+			for _, k := range []struct {
+				key string
+				dst *string
+			}{
+				{"tenancy_id", &cfg.OCI.TenancyID}, {"user_id", &cfg.OCI.UserID}, {"fingerprint", &cfg.OCI.Fingerprint}, {"private_key", &cfg.OCI.PrivateKey},
+			} {
+				*k.dst = secretRef(&corev1.SecretKeySelector{LocalObjectReference: *o.ApiKeySecret, Key: k.key})
+			}
+		}
+	}
 	for _, d := range spec.Databases {
-		db := database{Type: d.Type, Host: d.Host, Port: d.Port, RDS: d.RDS, Elasticache: d.Elasticache, Params: d.Params}
+		db := database{Type: d.Type, Host: d.Host, Port: d.Port, RDS: d.RDS, Elasticache: d.Elasticache, CloudSQL: d.CloudSQL, Memorystore: d.Memorystore, OCIDB: d.OCIDB, OCICache: d.OCICache, Params: d.Params}
 		if c := d.Credentials; c != nil {
 			db.Credentials = &credentials{Username: c.Username, Password: c.Password}
 			if c.UsernameSecret != nil {
