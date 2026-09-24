@@ -123,7 +123,7 @@ type ApiKeySpec struct {
 }
 
 // +kubebuilder:validation:XValidation:rule="has(self.apiKeys) && size(self.apiKeys) > 0",message="At least one API key must be defined."
-// +kubebuilder:validation:XValidation:rule="!has(self.apiKeys) || self.apiKeys.all(k, has(k.description) && k.description != ”)",message="Every API key of a service account must have a description."
+// +kubebuilder:validation:XValidation:rule="!has(self.apiKeys) || self.apiKeys.all(k, has(k.description) && size(k.description) > 0)",message="Every API key of a service account must have a description."
 type ServiceAccountSpec struct {
 	// Service account name, used as its login (required).
 	// +kubebuilder:validation:Required
