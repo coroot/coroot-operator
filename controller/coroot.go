@@ -245,6 +245,17 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 		}
 	}
 
+	for i := range cr.Spec.ServiceAccounts {
+		sa := &cr.Spec.ServiceAccounts[i]
+		for i, k := range sa.ApiKeys {
+			if k.KeySecret != nil {
+				apiKeySecrets[k.KeySecret.Name] = append(apiKeySecrets[k.KeySecret.Name], k.KeySecret.Key)
+				sa.ApiKeys[i].Key = configEnvs.Add(k.KeySecret)
+				sa.ApiKeys[i].KeySecret = nil
+			}
+		}
+	}
+
 	for name, keys := range apiKeySecrets {
 		r.CreateOrUpdateSecret(ctx, cr, name, keys, 32, true)
 	}
@@ -829,11 +840,16 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 		KeyFile  string `json:"keyFile"`
 	}
 
+	type Auth struct {
+		ServiceAccounts []corootv1.ServiceAccountSpec `json:"serviceAccounts,omitempty"`
+	}
+
 	type Config struct {
 		ListenAddress        string                    `json:"listen_address,omitempty"`
 		HTTPSListenAddress   string                    `json:"https_listen_address,omitempty"`
 		HTTPDisabled         bool                      `json:"http_disabled,omitempty"`
 		DisableBuiltinAlerts bool                      `json:"disableBuiltinAlerts,omitempty"`
+		Auth                 *Auth                     `json:"auth,omitempty"`
 		Projects             []corootv1.ProjectSpec    `json:"projects,omitempty"`
 		SSO                  *corootv1.SSOSpec         `json:"sso,omitempty"`
 		AI                   *corootv1.AISpec          `json:"ai,omitempty"`
@@ -847,6 +863,9 @@ func (r *CorootReconciler) corootConfigMap(ctx context.Context, cr *corootv1.Cor
 		SSO:                  cr.Spec.SSO,
 		AI:                   cr.Spec.AI,
 		CorootCloud:          cr.Spec.CorootCloud,
+	}
+	if len(cr.Spec.ServiceAccounts) > 0 {
+		cfg.Auth = &Auth{ServiceAccounts: cr.Spec.ServiceAccounts}
 	}
 	if cr.Spec.HTTPDisabled {
 		cfg.HTTPDisabled = true

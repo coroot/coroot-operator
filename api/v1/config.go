@@ -122,6 +122,19 @@ type ApiKeySpec struct {
 	Description string `json:"description,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:rule="has(self.apiKeys) && size(self.apiKeys) > 0",message="At least one API key must be defined."
+// +kubebuilder:validation:XValidation:rule="!has(self.apiKeys) || self.apiKeys.all(k, has(k.description) && k.description != ”)",message="Every API key of a service account must have a description."
+type ServiceAccountSpec struct {
+	// Service account name, used as its login (required).
+	// +kubebuilder:validation:Required
+	Name string `json:"name,omitempty"`
+	// Role of the service account: Admin, Editor, Viewer, or a custom role (Coroot Enterprise Edition); required.
+	// +kubebuilder:validation:Required
+	Role string `json:"role,omitempty"`
+	// API keys of the service account (at least one required). Descriptions are required and must be unique within the account.
+	ApiKeys []ApiKeySpec `json:"apiKeys,omitempty"`
+}
+
 type RemoteCorootSpec struct {
 	// Base URL of the remote Coroot instance.
 	// +kubebuilder:validation:Pattern="^https?://.+$"

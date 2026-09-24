@@ -393,6 +393,8 @@ type CorootSpec struct {
 	DisableBuiltinAlerts bool `json:"disableBuiltinAlerts,omitempty"`
 	// Projects configuration (Coroot will create or update the specified projects).
 	Projects []ProjectSpec `json:"projects,omitempty"`
+	// Service accounts for programmatic access with API keys, e.g. autonomous agents using the MCP endpoint (Coroot will create or update them).
+	ServiceAccounts []ServiceAccountSpec `json:"serviceAccounts,omitempty"`
 	// Single Sign-On configuration (Coroot Enterprise Edition only).
 	SSO *SSOSpec `json:"sso,omitempty"`
 	// AI configuration (Coroot Enterprise Edition only).
