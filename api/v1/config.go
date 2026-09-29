@@ -123,7 +123,6 @@ type ApiKeySpec struct {
 }
 
 // +kubebuilder:validation:XValidation:rule="has(self.apiKeys) && size(self.apiKeys) > 0",message="At least one API key must be defined."
-// +kubebuilder:validation:XValidation:rule="!has(self.apiKeys) || self.apiKeys.all(k, has(k.description) && size(k.description) > 0)",message="Every API key of a service account must have a description."
 type ServiceAccountSpec struct {
 	// Service account name, used as its login (required).
 	// +kubebuilder:validation:Required
@@ -132,7 +131,18 @@ type ServiceAccountSpec struct {
 	// +kubebuilder:validation:Required
 	Role string `json:"role,omitempty"`
 	// API keys of the service account (at least one required). Descriptions are required and must be unique within the account.
-	ApiKeys []ApiKeySpec `json:"apiKeys,omitempty"`
+	ApiKeys []ServiceAccountApiKeySpec `json:"apiKeys,omitempty"`
+}
+
+type ServiceAccountApiKeySpec struct {
+	// Plain-text API key. Must be unique. Prefer using KeySecret for better security.
+	Key string `json:"key,omitempty"`
+	// Secret with the API key. Created automatically if missing.
+	KeySecret *corev1.SecretKeySelector `json:"keySecret,omitempty"`
+	// API key description (required).
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Description string `json:"description,omitempty"`
 }
 
 type RemoteCorootSpec struct {
