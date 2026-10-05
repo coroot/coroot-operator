@@ -141,6 +141,9 @@ func (r *CorootReconciler) clusterAgentDeployment(cr *corootv1.Coroot, configEnv
 
 	env = append(env, envVarFromSecret("API_KEY", cr.Spec.ApiKeySecret, cr.Spec.ApiKey))
 
+	if v := cr.Spec.ClusterAgent.Kubernetes.Enabled; v != nil && !*v {
+		env = append(env, corev1.EnvVar{Name: "DISABLE_KUBERNETES", Value: "true"})
+	}
 	if tlsSkipVerify {
 		env = append(env, corev1.EnvVar{Name: "INSECURE_SKIP_VERIFY", Value: "true"})
 	}
