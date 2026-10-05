@@ -152,14 +152,12 @@ func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				logger.Info("Coroot has been deleted")
 				delete(r.instances, req)
 			}
-			if len(r.instances) == 0 {
-				cr = &corootv1.Coroot{}
-				cr.Name = req.Name
-				cr.Namespace = req.Namespace
-				_ = r.Delete(ctx, r.clusterAgentClusterRoleBinding(cr))
-				_ = r.Delete(ctx, r.clusterAgentClusterRole(cr))
-			}
 			r.instancesLock.Unlock()
+			cr = &corootv1.Coroot{}
+			cr.Name = req.Name
+			cr.Namespace = req.Namespace
+			_ = r.Delete(ctx, r.clusterAgentClusterRoleBinding(cr))
+			_ = r.Delete(ctx, r.clusterAgentClusterRole(cr))
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -178,18 +176,37 @@ func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	configEnvs := ConfigEnvs{}
 	validationErrors := r.validateCoroot(ctx, cr, configEnvs)
 
-	r.CreateOrUpdateServiceAccount(ctx, cr, "node-agent", sccPrivileged)
-	r.CreateOrUpdateDaemonSet(ctx, cr, r.nodeAgentDaemonSet(cr))
-
-	r.CreateOrUpdateServiceAccount(ctx, cr, "cluster-agent", sccNonroot)
-	r.CreateOrUpdateClusterRole(ctx, cr, r.clusterAgentClusterRole(cr))
-	r.CreateOrUpdateClusterRoleBinding(ctx, cr, r.clusterAgentClusterRoleBinding(cr))
-	clusterAgentConfigEnvs := ConfigEnvs{}
-	clusterAgentConfigMap, clusterAgentConfigHash := r.clusterAgentConfigMap(ctx, cr, clusterAgentConfigEnvs)
-	if clusterAgentConfigMap != nil {
-		r.CreateOrUpdateConfigMap(ctx, cr, clusterAgentConfigMap)
+	if v := cr.Spec.NodeAgent.Enabled; v == nil || *v {
+		r.CreateOrUpdateServiceAccount(ctx, cr, "node-agent", sccPrivileged)
+		r.CreateOrUpdateDaemonSet(ctx, cr, r.nodeAgentDaemonSet(cr))
+	} else {
+		r.CreateOrUpdate(ctx, cr, r.nodeAgentDaemonSet(cr), true, false, nil)
+		r.DeleteServiceAccount(ctx, cr, "node-agent", sccPrivileged)
 	}
-	r.CreateOrUpdateDeployment(ctx, cr, r.clusterAgentDeployment(cr, clusterAgentConfigEnvs, clusterAgentConfigHash))
+
+	if v := cr.Spec.ClusterAgent.Enabled; v == nil || *v {
+		r.CreateOrUpdateServiceAccount(ctx, cr, "cluster-agent", sccNonroot)
+		if v := cr.Spec.ClusterAgent.Kubernetes.Enabled; v == nil || *v {
+			r.CreateOrUpdateClusterRole(ctx, cr, r.clusterAgentClusterRole(cr))
+			r.CreateOrUpdateClusterRoleBinding(ctx, cr, r.clusterAgentClusterRoleBinding(cr))
+		} else {
+			r.CreateOrUpdate(ctx, cr, r.clusterAgentClusterRoleBinding(cr), true, false, nil)
+			r.CreateOrUpdate(ctx, cr, r.clusterAgentClusterRole(cr), true, false, nil)
+		}
+		clusterAgentConfigEnvs := ConfigEnvs{}
+		clusterAgentConfigMap, clusterAgentConfigHash := r.clusterAgentConfigMap(ctx, cr, clusterAgentConfigEnvs)
+		if clusterAgentConfigMap != nil {
+			r.CreateOrUpdateConfigMap(ctx, cr, clusterAgentConfigMap)
+		}
+		r.CreateOrUpdateDeployment(ctx, cr, r.clusterAgentDeployment(cr, clusterAgentConfigEnvs, clusterAgentConfigHash))
+	} else {
+		r.CreateOrUpdate(ctx, cr, r.clusterAgentDeployment(cr, nil, ""), true, false, nil)
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: cr.Name + "-cluster-agent", Namespace: cr.Namespace}}
+		r.CreateOrUpdate(ctx, cr, cm, true, false, nil)
+		r.CreateOrUpdate(ctx, cr, r.clusterAgentClusterRoleBinding(cr), true, false, nil)
+		r.CreateOrUpdate(ctx, cr, r.clusterAgentClusterRole(cr), true, false, nil)
+		r.DeleteServiceAccount(ctx, cr, "cluster-agent", sccNonroot)
+	}
 
 	if cr.Spec.AgentsOnly != nil {
 		// TODO: delete
@@ -394,6 +411,15 @@ func (r *CorootReconciler) CreateOrUpdateServiceAccount(ctx context.Context, cr 
 	}}
 	r.CreateOrUpdate(ctx, cr, sa, false, false, nil)
 	r.CreateOrUpdate(ctx, cr, r.openshiftSCCRoleBinding(cr, component, scc), false, false, nil)
+}
+
+func (r *CorootReconciler) DeleteServiceAccount(ctx context.Context, cr *corootv1.Coroot, component, scc string) {
+	r.CreateOrUpdate(ctx, cr, r.openshiftSCCRoleBinding(cr, component, scc), true, false, nil)
+	sa := &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{
+		Name:      cr.Name + "-" + component,
+		Namespace: cr.Namespace,
+	}}
+	r.CreateOrUpdate(ctx, cr, sa, true, false, nil)
 }
 
 func (r *CorootReconciler) CreateOrUpdateRole(ctx context.Context, cr *corootv1.Coroot, role *rbacv1.Role) {

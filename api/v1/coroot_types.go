@@ -44,6 +44,8 @@ type AgentTLSSpec struct {
 }
 
 type NodeAgentSpec struct {
+	// Install the node-agent (default: true).
+	Enabled *bool `json:"enabled,omitempty"`
 	// Priority class for the node-agent pods.
 	PriorityClassName string                         `json:"priorityClassName,omitempty"`
 	UpdateStrategy    appsv1.DaemonSetUpdateStrategy `json:"update_strategy,omitempty"`
@@ -89,6 +91,8 @@ type EbpfProfilerSpec struct {
 }
 
 type ClusterAgentSpec struct {
+	// Install the cluster-agent (default: true).
+	Enabled *bool `json:"enabled,omitempty"`
 	// NodeSelector restricts scheduling to nodes matching the specified labels.
 	NodeSelector map[string]string           `json:"nodeSelector,omitempty"`
 	Affinity     *corev1.Affinity            `json:"affinity,omitempty"`
@@ -113,6 +117,17 @@ type ClusterAgentSpec struct {
 	Databases []ClusterAgentDatabaseSpec `json:"databases,omitempty"`
 
 	KubeStateMetrics KubeStateMetricsSpec `json:"kubeStateMetrics,omitempty"`
+	// Monitoring of the Kubernetes cluster the cluster-agent runs in.
+	Kubernetes ClusterAgentKubernetesSpec `json:"kubernetes,omitempty"`
+}
+
+type ClusterAgentKubernetesSpec struct {
+	// Collect telemetry from the Kubernetes cluster the cluster-agent runs in: kube-state-metrics, events,
+	// and the databases, custom metrics and profiles discovered from pods (default: true).
+	// When disabled, the cluster-agent monitors only the databases defined in the configuration and the cloud integrations,
+	// which is useful for running an additional cluster-agent that monitors databases for another cluster.
+	// Requires a cluster-agent version that supports --disable-kubernetes.
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type KubeStateMetricsSpec struct {
