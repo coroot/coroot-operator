@@ -434,6 +434,8 @@ type InspectionOverrides struct {
 	SLOAvailability []SLOAvailabilityOverride `json:"sloAvailability,omitempty"`
 	// SLO Latency overrides.
 	SLOLatency []SLOLatencyOverride `json:"sloLatency,omitempty"`
+	// SLO LLM Latency overrides (latency of LLM inference requests served by the app).
+	SLOLLMLatency []SLOLLMLatencyOverride `json:"sloLLMLatency,omitempty"`
 }
 
 type SLOAvailabilityOverride struct {
@@ -452,5 +454,16 @@ type SLOLatencyOverride struct {
 	ObjectivePercent Percent `json:"objectivePercent"`
 	// The latency threshold (e.g., 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s).
 	// +kubebuilder:validation:Enum="5ms";"10ms";"25ms";"50ms";"100ms";"250ms";"500ms";"1s";"2.5s";"5s";"10s"
+	ObjectiveThreshold metav1.Duration `json:"objectiveThreshold"`
+}
+
+type SLOLLMLatencyOverride struct {
+	// ApplicationId in the format <namespace>:<kind>:<name> (e.g., default:Deployment:vllm).
+	// +kubebuilder:validation:Pattern="^[^:]*:[^:]*:[^:]*"
+	ApplicationId string `json:"applicationId"`
+	// The percentage of LLM inference requests that should be served faster than ObjectiveThreshold (e.g., 95, 99, 99.9).
+	ObjectivePercent Percent `json:"objectivePercent"`
+	// The latency threshold (e.g., 100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s, 20s, 30s, 1m, 2m, 5m, 10m).
+	// +kubebuilder:validation:Enum="100ms";"250ms";"500ms";"1s";"2.5s";"5s";"10s";"20s";"30s";"1m";"2m";"5m";"10m"
 	ObjectiveThreshold metav1.Duration `json:"objectiveThreshold"`
 }
