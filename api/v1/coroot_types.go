@@ -6,6 +6,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -285,6 +286,30 @@ type IngressSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// HTTPRouteSpec configures exposing Coroot through an HTTPRoute (Gateway API v1) attached to an
+// existing user-managed Gateway. The operator does not create or manage Gateways, Gateway CRDs, TLS
+// certificates, or middlewares; TLS terminates at the Gateway.
+type HTTPRouteSpec struct {
+	// References of the Gateways to attach the HTTPRoute to (the Gateway must exist and allow this route,
+	// e.g., via spec.listeners[].allowedRoutes for cross-namespace references).
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=32
+	ParentRefs []gatewayv1.ParentReference `json:"parentRefs"`
+	// Hostnames the route should match (if omitted, the default of the matched Gateway listener is used).
+	// +kubebuilder:validation:MaxItems=16
+	Hostnames []gatewayv1.Hostname `json:"hostnames,omitempty"`
+	// Path prefix for Coroot (e.g., /coroot; default: /).
+	Path string `json:"path,omitempty"`
+	// Route-level filters, e.g., standard Gateway API filters or an ExtensionRef to an existing implementation-specific
+	// resource such as a Traefik Middleware (the Gateway implementation must have the corresponding
+	// Kubernetes CRD provider enabled, e.g., Traefik providers.kubernetesCRD, Helm providers.kubernetesCRD.enabled).
+	// +kubebuilder:validation:MaxItems=16
+	Filters []gatewayv1.HTTPRouteFilter `json:"filters,omitempty"`
+	// Annotations for HTTPRoute.
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
 type ServiceSpec struct {
 	// Service type (e.g., ClusterIP, NodePort, LoadBalancer).
 	Type corev1.ServiceType `json:"type,omitempty"`
@@ -370,6 +395,8 @@ type CorootSpec struct {
 	Service ServiceSpec `json:"service,omitempty"`
 	// Ingress configuration for Coroot.
 	Ingress *IngressSpec `json:"ingress,omitempty"`
+	// HTTPRoute configuration for Coroot (Gateway API, alternative to Ingress).
+	HTTPRoute *HTTPRouteSpec `json:"httpRoute,omitempty"`
 	// NodeSelector restricts scheduling to nodes matching the specified labels.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	Affinity     *corev1.Affinity  `json:"affinity,omitempty"`
