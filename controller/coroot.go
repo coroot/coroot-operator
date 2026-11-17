@@ -256,6 +256,10 @@ func (r *CorootReconciler) validateCoroot(ctx context.Context, cr *corootv1.Coro
 		}
 	}
 
+	for _, e := range httpRouteValidationErrors(cr) {
+		logErr("%s", e)
+	}
+
 	for name, keys := range apiKeySecrets {
 		r.CreateOrUpdateSecret(ctx, cr, name, keys, 32, true)
 	}
@@ -748,6 +752,8 @@ func (r *CorootReconciler) corootStatefulSet(cr *corootv1.Coroot, configEnvs Con
 
 	if cr.Spec.Ingress != nil && cr.Spec.Ingress.Path != "" {
 		env = append(env, corev1.EnvVar{Name: "URL_BASE_PATH", Value: cr.Spec.Ingress.Path})
+	} else if hr := cr.Spec.HTTPRoute; hr != nil && hr.Path != "" {
+		env = append(env, corev1.EnvVar{Name: "URL_BASE_PATH", Value: hr.Path})
 	}
 
 	env = append(env, configEnvs.List()...)

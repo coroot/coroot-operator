@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 const (
@@ -48,6 +49,11 @@ type CorootReconciler struct {
 	// IngressAPIVersion tracks which Ingress API is available
 	// "networking.k8s.io/v1" for K8s 1.19+, "networking.k8s.io/v1beta1" for older
 	IngressAPIVersion string
+
+	// HTTPRouteAPIAvailable tracks whether the Gateway API (gateway.networking.k8s.io/v1)
+	// HTTPRoute resource is available in the cluster (detected at startup; installing
+	// the Gateway API CRDs later requires an operator restart).
+	HTTPRouteAPIAvailable bool
 
 	RegistryConfig *RegistryConfig
 }
@@ -80,6 +86,10 @@ func NewCorootReconciler(mgr ctrl.Manager) *CorootReconciler {
 	// Detect which Ingress API version is available
 	r.IngressAPIVersion = detectIngressAPIVersion(mgr)
 	ctrl.Log.Info("Detected Ingress API version", "version", r.IngressAPIVersion)
+
+	// Detect whether Gateway API HTTPRoute is available
+	r.HTTPRouteAPIAvailable = detectHTTPRouteAPI(mgr)
+	ctrl.Log.Info("Detected Gateway API availability", "httproute", r.HTTPRouteAPIAvailable)
 
 	r.fetchAppVersions()
 	go func() {
@@ -121,6 +131,28 @@ func detectIngressAPIVersion(mgr ctrl.Manager) string {
 	return IngressAPIV1Beta1
 }
 
+func detectHTTPRouteAPI(mgr ctrl.Manager) bool {
+	cfg := mgr.GetConfig()
+	dc, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		ctrl.Log.Error(err, "Failed to create discovery client, assuming Gateway API is unavailable")
+		return false
+	}
+	resources, err := dc.ServerResourcesForGroupVersion("gateway.networking.k8s.io/v1")
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			ctrl.Log.Error(err, "Failed to detect Gateway API; assuming it is unavailable")
+		}
+		return false
+	}
+	for _, r := range resources.APIResources {
+		if r.Kind == "HTTPRoute" {
+			return true
+		}
+	}
+	return false
+}
+
 // +kubebuilder:rbac:groups=coroot.com,resources=coroots,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coroot.com,resources=coroots/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=coroot.com,resources=coroots/finalizers,verbs=update
@@ -129,6 +161,7 @@ func detectIngressAPIVersion(mgr ctrl.Manager) string {
 // +kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses;volumeattachments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=use
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
@@ -226,6 +259,17 @@ func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		r.deploymentDeleted = true
 	}
 	r.CreateOrUpdateIngress(ctx, cr, cr.Spec.Ingress == nil)
+	// Route failures must not stop the rest of the reconciliation: record the error and keep
+	// reconciling Prometheus/ClickHouse/etc., then report it in status at the end.
+	var routeErr error
+	if cr.Spec.HTTPRoute == nil {
+		routeErr = r.reconcileHTTPRoute(ctx, cr, true)
+	} else if len(httpRouteValidationErrors(cr)) == 0 {
+		routeErr = r.reconcileHTTPRoute(ctx, cr, false)
+	}
+	if routeErr != nil {
+		validationErrors = append(validationErrors, routeErr.Error())
+	}
 
 	if cr.Spec.ExternalPrometheus == nil && !cr.Spec.StoreMetricsInClickhouse {
 		r.CreateOrUpdateServiceAccount(ctx, cr, "prometheus", sccNonroot)
@@ -262,6 +306,11 @@ func (r *CorootReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if len(validationErrors) > 0 {
 		cr.Status.Status = "Misconfigured"
 		cr.Status.Errors = validationErrors
+		if routeErr != nil && routeErr != ErrHTTPRouteAPIUnavailable {
+			// Real route failures (API errors, ownership conflicts) requeue with backoff;
+			// configuration and missing-CRD issues keep the one-minute requeue.
+			return ctrl.Result{}, routeErr
+		}
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	}
 	cr.Status.Status = "OK"
@@ -484,6 +533,12 @@ func (r *CorootReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		builder = builder.Owns(&networkingv1.Ingress{})
 	} else {
 		builder = builder.Owns(&networkingv1beta1.Ingress{})
+	}
+
+	// Watch HTTPRoute only when the Gateway API is available; an unconditional Owns would
+	// fail cache sync on clusters without the Gateway API CRDs.
+	if r.HTTPRouteAPIAvailable {
+		builder = builder.Owns(&gatewayv1.HTTPRoute{})
 	}
 
 	return builder.Complete(r)
