@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	ClickhouseImage = "clickhouse:25.11.2-ubi9-0"
+	ClickhouseImage = "clickhouse:26.10.3-ubi9-0"
 	PrometheusImage = "prometheus:2.55.1-ubi9-0"
 )
 
