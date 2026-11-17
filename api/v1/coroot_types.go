@@ -191,6 +191,11 @@ type ClickhouseSpec struct {
 
 	Keeper ClickhouseKeeperSpec `json:"keeper,omitempty"`
 
+	// Fsync data parts to disk after inserts and merges (default: false).
+	// By default, ClickHouse doesn't fsync parts, relying on other replicas to recover the parts lost on a node failure.
+	// Enabling this prevents data loss in single-replica setups at the cost of additional disk I/O.
+	Fsync bool `json:"fsync,omitempty"`
+
 	// S3 storage configuration for ClickHouse (optional).
 	S3 *ClickhouseS3Spec `json:"s3,omitempty"`
 }
