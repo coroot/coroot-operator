@@ -278,11 +278,13 @@ func clickhouseConfigCmd(filename string, cr *corootv1.Coroot, shards, replicas,
 		Replicas  []int
 		Keepers   []int
 		LogLevel  string
+		Fsync     bool
 		S3        *s3ConfigParams
 	}{
 		Namespace: cr.Namespace,
 		Name:      cr.Name,
 		LogLevel:  cr.Spec.Clickhouse.LogLevel,
+		Fsync:     cr.Spec.Clickhouse.Fsync,
 	}
 	for i := 0; i < shards; i++ {
 		params.Shards = append(params.Shards, i)
@@ -394,12 +396,21 @@ var clickhouseConfigTemplate = template.Must(template.New("").Parse(`
 <distributed_ddl>
     <path>/clickhouse/task_queue/ddl</path>
 </distributed_ddl>
-{{- if .S3 }}
 
 <merge_tree>
+    <max_suspicious_broken_parts>1000000</max_suspicious_broken_parts>
+    <max_suspicious_broken_parts_bytes>1000000000000</max_suspicious_broken_parts_bytes>
+    {{- if .Fsync }}
+    <fsync_after_insert>1</fsync_after_insert>
+    <fsync_part_directory>1</fsync_part_directory>
+    <min_rows_to_fsync_after_merge>1</min_rows_to_fsync_after_merge>
+    {{- end }}
+    {{- if .S3 }}
     <allow_remote_fs_zero_copy_replication>false</allow_remote_fs_zero_copy_replication>
     <storage_policy>s3_{{ .S3.Mode }}</storage_policy>
+    {{- end }}
 </merge_tree>
+{{- if .S3 }}
 
 <storage_configuration>
     <disks>
